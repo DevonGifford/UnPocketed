@@ -207,6 +207,7 @@ Unpocketed will not ship features designed to conceal that recording is taking p
 |---|---|
 | [Specification](docs/spec.md) | Product and technical spec for v0.1 |
 | [Domain glossary](CONTEXT.md) | The project's vocabulary, and the words to avoid |
+| [Android setup](docs/android-setup.md) | Getting a local build toolchain working |
 | [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
 | [Decision map](.scratch/v0-1-derisk/map.md) | What is settled, what is still open |
 
