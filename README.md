@@ -106,18 +106,18 @@ v0.1 ships as ten sequential pieces of work. Full detail is in [§38 of the spec
 
 <br/>
 
-| | Milestone | Done when |
-|---|---|---|
-| **1** | Foundation and static interface | The app runs locally and looks like the product, on mock data |
-| **2** | Android development environment | A development build is installed and debugged on a physical device |
-| **3** | Audio recording | A real recording can be created and replayed after the session ends |
-| **4** | Persistent library and playback | Recordings survive an app restart and remain playable |
-| **5** | Background recording and resilience | An hour-long real-world recording can be trusted |
-| **6** | External audio import | An externally exported recording imports and plays |
-| **7** | Initial transcription | A recording produces and displays a real transcript |
-| **8** | Bring-your-own provider | The same recording transcribes under two different models |
-| **9** | Transcript ownership | Import, transcribe, compare, edit and export without lock-in |
-| **10** | Polish and Android release | A stranger can install the APK and do all of the above unaided |
+| | Milestone | Done when | Status |
+|---|---|---|---|
+| **1** | Foundation and static interface | The app runs locally and looks like the product, on mock data | Shipped |
+| **2** | Android development environment | A development build is installed and debugged on a physical device | Shipped |
+| **3** | Audio recording | A real recording can be created and replayed after the session ends | Shipped |
+| **4** | Persistent library and playback | Recordings survive an app restart and remain playable | In progress |
+| **5** | Background recording and resilience | An hour-long real-world recording can be trusted | Not started |
+| **6** | External audio import | An externally exported recording imports and plays | Not started |
+| **7** | Initial transcription | A recording produces and displays a real transcript | Not started |
+| **8** | Bring-your-own provider | The same recording transcribes under two different models | Not started |
+| **9** | Transcript ownership | Import, transcribe, compare, edit and export without lock-in | Not started |
+| **10** | Polish and Android release | A stranger can install the APK and do all of the above unaided | Not started |
 
 **Explicitly out of scope for v0.1:** accounts, cloud storage, sync, subscriptions, summaries, mind maps, chat-with-your-recordings, semantic search, speaker profiles, iOS, and on-device Whisper. Some may come later; none is needed to prove the core product.
 
