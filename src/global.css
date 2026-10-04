@@ -5,92 +5,93 @@
  * Design tokens (§30).
  *
  * The vocabulary is shadcn's, because React Native Reusables components are
- * written against it — `bg-card`, `text-muted-foreground`, `border-border` and
- * so on. Adopting those names means a component copied from the registry works
- * unmodified instead of needing its classes rewritten on every import, and §30
- * asks for semantic *concepts* rather than particular identifiers, so nothing
- * in the spec is given up by it.
+ * written against it. §30 asks for semantic *concepts* rather than particular
+ * identifiers, so nothing in the spec is given up by using those names.
  *
- * `--color-record` is ours, not shadcn's: §13 wants the recording state to have
- * a reserved colour, and no general-purpose palette has that concept.
+ * The dark values are sampled from the target designs in `docs/`, not eyeballed
+ * — background #02121A, cyan #49C4E4, border #22475F, record #FB3A5C and so on.
+ * The light values are *derived* from the same hues with inverted lightness:
+ * the mockups are dark-only, so light mode is an interpretation rather than a
+ * specification, and is expected to be refined once it is designed properly.
  *
- * Values are the existing restrained zinc palette (§28), unchanged where a
- * token already existed. The tokens that are new here are derived from the same
- * family rather than copied from shadcn's defaults, so the app keeps its own
- * look instead of inheriting a stock one. `primary` is deliberately plain ink
- * for now — the cyan accent from the target designs lands with the palette
- * work, not with this rename.
+ * Note the surface treatment: in the designs a card is barely lighter than the
+ * page and is read by its *border*, not by a fill. Keep it that way — filling
+ * cards is what turns this into a generic dark theme.
+ *
+ * Dark mode flips the tokens themselves rather than requiring `dark:` on every
+ * element. `Uniwind.setTheme()` drives this through React Native's
+ * `Appearance.setColorScheme`, so the in-app theme toggle and the system
+ * setting both land here.
  */
 @theme {
-  --color-background: hsl(0 0% 98%);
-  --color-foreground: hsl(240 6% 10%);
+  --color-background: hsl(200 40% 97%);
+  --color-foreground: hsl(200 50% 10%);
 
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(240 6% 10%);
+  --color-card-foreground: hsl(200 50% 10%);
 
-  --color-primary: hsl(240 6% 10%);
-  --color-primary-foreground: hsl(0 0% 98%);
+  --color-primary: hsl(192 80% 32%);
+  --color-primary-foreground: hsl(0 0% 100%);
 
-  --color-secondary: hsl(240 5% 96%);
-  --color-secondary-foreground: hsl(240 6% 10%);
+  --color-secondary: hsl(200 30% 93%);
+  --color-secondary-foreground: hsl(200 50% 10%);
 
-  --color-muted: hsl(240 5% 96%);
-  --color-muted-foreground: hsl(240 4% 46%);
+  --color-muted: hsl(200 30% 93%);
+  --color-muted-foreground: hsl(204 25% 42%);
 
-  --color-accent: hsl(240 5% 96%);
-  --color-accent-foreground: hsl(240 6% 10%);
+  --color-accent: hsl(200 30% 93%);
+  --color-accent-foreground: hsl(192 80% 32%);
 
-  --color-destructive: hsl(0 72% 51%);
+  --color-destructive: hsl(349 75% 45%);
 
-  --color-border: hsl(240 6% 90%);
-  --color-input: hsl(240 6% 90%);
-  --color-ring: hsl(240 6% 10%);
+  --color-border: hsl(204 30% 84%);
+  --color-input: hsl(204 30% 84%);
+  --color-ring: hsl(192 80% 32%);
 
   /* Reserved for the recording state (§13, §31). Its foreground is white in
      both schemes: it only ever sits on the record accent, so it must not flip
      with the colour scheme the way `primary-foreground` does. */
-  --color-record: hsl(0 72% 51%);
+  --color-record: hsl(349 80% 48%);
   --color-record-foreground: hsl(0 0% 100%);
 
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
   --radius-full: 9999px;
+
+  /* The designs are monospace throughout — it is the loudest thing about the
+     typography, so it is bundled rather than left to whatever the device
+     ships as its system mono. */
+  --font-mono: 'JetBrainsMono_400Regular';
 }
 
-/*
- * Dark mode flips the tokens themselves rather than requiring `dark:` on every
- * element, so a screen written once renders correctly in both schemes.
- * `src/theme/navigation.ts` mirrors three of these as literal hex, because
- * React Navigation options cannot take class names — keep the two in step.
- */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-background: hsl(240 4% 4%);
-    --color-foreground: hsl(0 0% 98%);
+    --color-background: hsl(200 86% 5%);
+    --color-foreground: hsl(194 54% 86%);
 
-    --color-card: hsl(240 3% 9%);
-    --color-card-foreground: hsl(0 0% 98%);
+    --color-card: hsl(200 77% 7%);
+    --color-card-foreground: hsl(194 54% 86%);
 
-    --color-primary: hsl(0 0% 98%);
-    --color-primary-foreground: hsl(240 6% 10%);
+    --color-primary: hsl(192 74% 59%);
+    --color-primary-foreground: hsl(200 86% 5%);
 
-    --color-secondary: hsl(240 4% 16%);
-    --color-secondary-foreground: hsl(0 0% 98%);
+    --color-secondary: hsl(204 40% 14%);
+    --color-secondary-foreground: hsl(194 54% 86%);
 
-    --color-muted: hsl(240 4% 16%);
-    --color-muted-foreground: hsl(240 5% 65%);
+    --color-muted: hsl(204 40% 12%);
+    --color-muted-foreground: hsl(204 43% 53%);
 
-    --color-accent: hsl(240 4% 16%);
-    --color-accent-foreground: hsl(0 0% 98%);
+    --color-accent: hsl(204 40% 14%);
+    --color-accent-foreground: hsl(192 74% 59%);
 
-    --color-destructive: hsl(0 84% 60%);
+    --color-destructive: hsl(349 96% 61%);
 
-    --color-border: hsl(240 4% 16%);
-    --color-input: hsl(240 4% 16%);
-    --color-ring: hsl(0 0% 98%);
+    --color-border: hsl(204 47% 25%);
+    --color-input: hsl(204 47% 25%);
+    --color-ring: hsl(192 74% 59%);
 
-    --color-record: hsl(0 84% 60%);
+    --color-record: hsl(349 96% 61%);
     --color-record-foreground: hsl(0 0% 100%);
   }
 }

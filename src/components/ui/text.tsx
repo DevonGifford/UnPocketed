@@ -6,7 +6,10 @@ import { Platform, Text as RNText, type Role } from 'react-native';
 
 const textVariants = cva(
   cn(
-    'text-foreground text-base',
+    // `font-mono` sits in the base rather than on each variant: the target
+    // designs are monospace throughout, so it is the default rather than an
+    // exception. §30's token layer owns which face that resolves to.
+    'text-foreground text-base font-mono',
     Platform.select({
       web: 'select-text',
     })

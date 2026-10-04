@@ -1,14 +1,39 @@
 import "../global.css";
+import { useEffect } from "react";
 import { Stack } from "expo-router";
+import {
+  JetBrainsMono_400Regular,
+  JetBrainsMono_500Medium,
+  JetBrainsMono_700Bold,
+  useFonts,
+} from "@expo-google-fonts/jetbrains-mono";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { navColors } from "@/theme/navigation";
 
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
+  // The designs are monospace throughout, so the interface is wrong until the
+  // typeface is in. Holding the splash avoids a visible reflow from the system
+  // font to JetBrains Mono on launch.
+  const [fontsLoaded] = useFonts({
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
+    JetBrainsMono_700Bold,
+  });
+
+  useEffect(() => {
+    if (fontsLoaded) void SplashScreen.hideAsync();
+  }, [fontsLoaded]);
+
   const scheme = useColorScheme();
   const c = navColors[scheme === "dark" ? "dark" : "light"];
+
+  if (!fontsLoaded) return null;
 
   return (
     <SafeAreaProvider>
@@ -17,7 +42,7 @@ export default function RootLayout() {
         screenOptions={{
           headerStyle: { backgroundColor: c.background },
           headerTintColor: c.foreground,
-          headerTitleStyle: { fontSize: 17, fontWeight: "600" },
+          headerTitleStyle: { fontSize: 17, fontFamily: "JetBrainsMono_500Medium" },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: c.background },
         }}

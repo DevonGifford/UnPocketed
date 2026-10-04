@@ -7,6 +7,6 @@
  * not reflected here is visible rather than silent.
  */
 export const navColors = {
-  light: { background: "#FAFAFA", foreground: "#18181B", border: "#E4E4E7" },
-  dark: { background: "#0B0B0C", foreground: "#FAFAFA", border: "#27272A" },
+  light: { background: "#F4F8FA", foreground: "#0D1E26", border: "#CAD9E2" },
+  dark: { background: "#021018", foreground: "#C8E6EF", border: "#22465E" },
 } as const;

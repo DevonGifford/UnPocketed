@@ -3,6 +3,7 @@
   "main": "expo-router/entry",
   "version": "0.1.0",
   "dependencies": {
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo/ui": "~57.0.21",
     "@rn-primitives/alert-dialog": "^1.5.2",
     "@rn-primitives/portal": "^1.5.2",
