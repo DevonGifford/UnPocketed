@@ -1,6 +1,6 @@
 import { ScrollView, View } from "react-native";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { SettingRow } from "@/components/setting-row";
 
 /** Settings (§19). Provider, model and key are the only MVP configuration. */

@@ -1,5 +1,5 @@
 import { Pressable, View } from "react-native";
-import { Text } from "./text";
+import { Text } from "@/components/ui/text";
 
 /** A grouped settings row (§19): label on the left, current value on the right. */
 export function SettingRow({

@@ -1,7 +1,7 @@
 import { FlatList, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { RecordingRow } from "@/components/recording-row";
 import { mockRecordings } from "@/mocks/recordings";
 

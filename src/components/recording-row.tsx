@@ -1,5 +1,5 @@
 import { Pressable, View } from "react-native";
-import { Text } from "./text";
+import { Text } from "@/components/ui/text";
 import { TranscriptionStatus } from "./transcription-status";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 import type { MockRecording } from "@/mocks/recordings";

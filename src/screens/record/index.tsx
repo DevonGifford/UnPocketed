@@ -1,7 +1,7 @@
 import { Pressable, View } from "react-native";
 import { Link } from "expo-router";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { useRecordingSession } from "@/features/recording";
 import { formatDuration } from "@/lib/format";
 

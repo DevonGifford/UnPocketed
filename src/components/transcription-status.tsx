@@ -1,4 +1,4 @@
-import { Text } from "./text";
+import { Text } from "@/components/ui/text";
 import type { TranscriptionState } from "@/types";
 import { formatTranscriptCount } from "@/lib/format";
 

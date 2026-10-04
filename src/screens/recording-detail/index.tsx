@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 import { findMockRecording } from "@/mocks/recordings";
 
