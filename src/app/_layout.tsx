@@ -47,10 +47,20 @@ export default function RootLayout() {
           contentStyle: { backgroundColor: c.background },
         }}
       >
+        {/*
+          Home, and the screens that carry their own AppHeader, hide the
+          navigator header so the wordmark is not doubled up. Pushed detail
+          screens keep it, because that is where Back lives.
+        */}
         <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="library" options={{ title: "Library" }} />
-        <Stack.Screen name="settings" options={{ title: "Settings" }} />
+        <Stack.Screen name="record" options={{ title: "Record" }} />
+        <Stack.Screen name="recordings/index" options={{ title: "Recordings" }} />
         <Stack.Screen name="recordings/[id]" options={{ title: "" }} />
+        <Stack.Screen name="transcripts/index" options={{ headerShown: false }} />
+        <Stack.Screen name="transcripts/[id]" options={{ title: "" }} />
+        <Stack.Screen name="import" options={{ headerShown: false }} />
+        <Stack.Screen name="devices" options={{ headerShown: false }} />
+        <Stack.Screen name="settings" options={{ title: "Settings" }} />
       </Stack>
       {/*
         Overlay components from `components/ui` (AlertDialog, and anything else

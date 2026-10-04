@@ -111,13 +111,13 @@ export function RecordScreen() {
       ) : null}
 
       <View className="items-center pb-6">
-        <Link href="/library" asChild>
+        <Link href="/recordings" asChild>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Open library"
+            accessibilityLabel="Open recordings"
             className="min-h-[44px] justify-center px-6"
           >
-            <Text variant="subhead">Library</Text>
+            <Text variant="subhead">Recordings</Text>
           </Pressable>
         </Link>
       </View>
