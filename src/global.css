@@ -1,34 +1,47 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'uniwind';
 
 /*
- * Design tokens (§30). Values are HSL channels so Tailwind can apply opacity.
+ * Design tokens (§30). Values are unchanged from the NativeWind/Tailwind 3
+ * setup — only the mechanism moved. Tailwind 4 is CSS-first, so these live in
+ * `@theme` rather than in a `tailwind.config.js`, and they are real colours
+ * rather than bare HSL channels: Tailwind 4 handles opacity modifiers
+ * (`bg-canvas/50`) natively, so the `<alpha-value>` plumbing is gone.
+ *
  * Palette is deliberately restrained (§28): near-neutral greys, one accent
  * reserved for the recording state. No gradients, no brand colour wash.
  */
-@layer base {
-  :root {
-    --canvas: 0 0% 98%;
-    --surface: 0 0% 100%;
-    --line: 240 6% 90%;
-    --ink: 240 6% 10%;
-    --muted: 240 4% 46%;
-    --record: 0 72% 51%;
-    --destructive: 0 72% 51%;
-    --on-accent: 0 0% 100%;
-  }
+@theme {
+  --color-canvas: hsl(0 0% 98%);
+  --color-surface: hsl(0 0% 100%);
+  --color-line: hsl(240 6% 90%);
+  --color-ink: hsl(240 6% 10%);
+  --color-muted: hsl(240 4% 46%);
+  --color-record: hsl(0 72% 51%);
+  --color-destructive: hsl(0 72% 51%);
+  --color-on-accent: hsl(0 0% 100%);
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --canvas: 240 4% 4%;
-      --surface: 240 3% 9%;
-      --line: 240 4% 16%;
-      --ink: 0 0% 98%;
-      --muted: 240 5% 65%;
-      --record: 0 84% 60%;
-      --destructive: 0 84% 60%;
-      --on-accent: 0 0% 100%;
-    }
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+}
+
+/*
+ * Dark mode flips the tokens themselves rather than requiring `dark:` on every
+ * element, so a screen written once renders correctly in both schemes.
+ * `src/theme/navigation.ts` mirrors three of these as literal hex, because
+ * React Navigation options cannot take class names — keep the two in step.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-canvas: hsl(240 4% 4%);
+    --color-surface: hsl(240 3% 9%);
+    --color-line: hsl(240 4% 16%);
+    --color-ink: hsl(0 0% 98%);
+    --color-muted: hsl(240 5% 65%);
+    --color-record: hsl(0 84% 60%);
+    --color-destructive: hsl(0 84% 60%);
+    --color-on-accent: hsl(0 0% 100%);
   }
 }

@@ -1,6 +1,6 @@
 /**
  * Navigator chrome needs real colour values — React Navigation options cannot
- * take NativeWind classes. These MIRROR the tokens in `src/global.css`, which
+ * take utility class names. These MIRROR the tokens in `src/global.css`, which
  * remains the single source of truth; keep the two in step when a token moves.
  */
 export const navColors = {

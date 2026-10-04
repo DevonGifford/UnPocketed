@@ -1,8 +1,8 @@
-# React Native's Metro resolver does not follow pnpm's strict symlinked layout.
-# NativeWind's Babel transform imports `react-native-css-interop/jsx-runtime`,
-# a transitive dependency that is invisible at the project root under pnpm's
-# default linker, so bundling fails with "Unable to resolve module".
-# A hoisted layout is the documented fix for React Native under pnpm.
+# React Native's Metro resolver does not follow pnpm's strict symlinked layout,
+# so bundling fails with "Unable to resolve module" without a hoisted layout.
+# This originally landed for NativeWind's `react-native-css-interop/jsx-runtime`;
+# that dependency left with NativeWind, but a hoisted layout remains the
+# documented setup for React Native under pnpm and has not been retested.
 # NOTE: pnpm 11+ reads this from pnpm-workspace.yaml, not .npmrc.
 nodeLinker: hoisted
 

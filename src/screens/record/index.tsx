@@ -79,8 +79,8 @@ export function RecordScreen() {
             <View
               className={
                 isRecording
-                  ? "h-7 w-7 rounded-sm bg-onAccent"
-                  : "h-7 w-7 rounded-full bg-onAccent"
+                  ? "h-7 w-7 rounded-sm bg-on-accent"
+                  : "h-7 w-7 rounded-full bg-on-accent"
               }
             />
           </View>
