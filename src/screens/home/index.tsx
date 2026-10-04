@@ -7,22 +7,6 @@ import { Text } from "@/components/ui/text";
 import { mockRecordings } from "@/mocks/recordings";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 
-/**
- * The landing screen (§29).
- *
- * §29 left open whether Home and Library "naturally become the same screen";
- * the target design answers no — Home is a launcher that routes to Recordings,
- * Transcripts, Import and provider settings, and shows only a short recent
- * list. The full list lives on Recordings.
- *
- * Several destinations here are deliberately ahead of their functionality.
- * Importing, syncing a pocket device and choosing a provider are all §6
- * non-goals *for v0.1* but targets for v1.0, and the decision on record is to
- * build the interface once rather than redesign it per feature. They route to
- * scaffolded screens rather than nowhere.
- */
-
-/** A full-width hero action: the two most important things on the screen. */
 function HeroAction({
   title,
   description,
@@ -67,7 +51,6 @@ function HeroAction({
   );
 }
 
-/** One tile in the 2x2 destination grid. */
 function Tile({
   title,
   detail,
@@ -100,6 +83,7 @@ function Tile({
   );
 }
 
+/** Home is a launcher; the full Library lives on Recordings (§29). */
 export function HomeScreen() {
   const router = useRouter();
   const recent = [...mockRecordings]

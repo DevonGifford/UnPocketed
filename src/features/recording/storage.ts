@@ -2,23 +2,13 @@ import { Directory, File, Paths } from "expo-file-system";
 
 import type { Recording } from "@/types";
 
-/**
- * Durable storage for finished recordings (§11: "persist it into durable
- * application storage").
- *
- * `Paths.document` is used rather than `Paths.cache` deliberately — §3.2 makes
- * the original audio sacred, and the cache directory is explicitly a place the
- * system may delete when storage runs low.
- *
- * PR3 has no database; SQLite arrives at PR4. Until then each recording's
- * metadata sits in a JSON sidecar beside its audio, which PR4's migration can
- * read and then discard. This is deliberately not a schema — if it starts
- * growing relations, it belongs in PR4 instead.
+/*
+ * Keep original audio in Paths.document: Android may evict Paths.cache (§3.2).
+ * Until SQLite lands, metadata is a JSON sidecar beside each audio file.
  */
 
 const DIRECTORY_NAME = "recordings";
 
-/** `.m4a` from `RecordingPresets.HIGH_QUALITY`; the map covers what Android may emit. */
 const MIME_TYPES: Record<string, string> = {
   m4a: "audio/mp4",
   mp4: "audio/mp4",
@@ -27,7 +17,6 @@ const MIME_TYPES: Record<string, string> = {
   wav: "audio/wav",
 };
 
-/** Metadata persisted alongside the audio. Mirrors `Recording` minus derived fields. */
 interface Sidecar {
   id: string;
   title: string;
@@ -39,7 +28,6 @@ interface Sidecar {
   updatedAt: string;
 }
 
-/** The directory holding every finished recording, created on first use. */
 function recordingsDirectory(): Directory {
   const directory = new Directory(Paths.document, DIRECTORY_NAME);
   directory.create({ intermediates: true, idempotent: true });
@@ -51,33 +39,23 @@ function extensionOf(uri: string): string {
   return match ? match[1].toLowerCase() : "m4a";
 }
 
-/**
- * Sortable, filename-safe, and unique without pulling in a uuid dependency.
- *
- * `\D` is used rather than a character class listing the separators, and that
- * is not a style preference. Tailwind scans every file under its content glob
- * as plain text, and a square-bracketed expression containing a colon reads as
- * its arbitrary-property syntax. Spelling the ISO separators out that way
- * compiled to a real CSS rule with an empty property name, which is invalid
- * and failed the entire bundle rather than just this module.
- */
+/** Use `\D`: a character class containing a colon breaks Uniwind's scan. */
 function newRecordingId(at: Date): string {
-  // "2026-10-04T20:41:33.123Z" -> "20261004204133" (YYYYMMDDHHMMSS).
   const stamp = at.toISOString().replace(/\D/g, "").slice(0, 14);
   const suffix = Math.random().toString(36).slice(2, 8);
   return `${stamp}-${suffix}`;
 }
 
 /**
- * Moves a just-finished recording out of the recorder's temporary location and
- * into durable storage, writing its sidecar.
+ * Moves finished audio to durable storage, then writes its JSON sidecar.
  *
- * The audio is moved before the sidecar is written: if the sidecar write fails
- * the audio still exists and is recoverable, whereas the reverse would leave
- * metadata describing a file that is not there.
- *
- * Throws if the move fails. The caller must treat that as "audio may still be
- * in temporary storage" and say so (§32) rather than reporting a clean failure.
+ * Audio moves first so a failed sidecar write leaves recoverable audio (§3.2).
+ * @param args.sourceUri Temporary recorder URI.
+ * @param args.durationMs Final duration from the recorder.
+ * @param args.recordedAt Timestamp override, mainly for deterministic callers.
+ * @returns The Recording with its durable audio path.
+ * @throws If the move or sidecar write fails. A move failure may leave audio
+ * in temporary storage; a sidecar failure leaves it at the destination.
  */
 export async function persistRecording(args: {
   sourceUri: string;
@@ -113,11 +91,9 @@ export async function persistRecording(args: {
 }
 
 /**
- * Every persisted recording, newest first.
- *
- * Audio without a readable sidecar is still returned, with whatever can be
- * recovered from the filename — §3.2 means a lost sidecar must never hide a
- * recording that exists on disk.
+ * Lists stored audio newest first. Audio without a readable sidecar remains
+ * visible as a recovered Recording (§3.2).
+ * @returns Recordings with durable audio paths; recovered items use fallback metadata.
  */
 export function listPersistedRecordings(): Recording[] {
   const directory = recordingsDirectory();
@@ -156,13 +132,7 @@ export function listPersistedRecordings(): Recording[] {
   return recordings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/**
- * The default title for a new recording (§11: "a useful default title can be
- * derived from date/time", renameable afterwards).
- *
- * Deliberately absolute rather than relative — "Today, 14:32" is a display
- * format (§15) and would be wrong the next day if stored.
- */
+/** Stores an absolute title; relative labels such as "Today" belong in the UI. */
 export function defaultRecordingTitle(at: Date): string {
   const date = at.toLocaleDateString(undefined, {
     day: "numeric",

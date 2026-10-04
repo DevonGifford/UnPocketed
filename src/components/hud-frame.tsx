@@ -1,14 +1,6 @@
 import { View } from "react-native";
 
-/**
- * The bracketed frame used around headline surfaces in the designs: four short
- * corner rules rather than a full border, so the edge is implied instead of
- * drawn. §28 asks for restraint, and a complete box around every card would
- * read as heavier than the designs do.
- *
- * Deliberately decoration only — it renders its corners and gets out of the
- * way, so the content inside owns its own padding and background.
- */
+/** Decorative corner brackets from the target designs; content owns its layout. */
 export function HudFrame({
   children,
   className = "",

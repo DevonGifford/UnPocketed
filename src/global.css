@@ -2,33 +2,13 @@
 @import 'uniwind';
 
 /*
- * Design tokens (§30).
+ * §30: shadcn token names support React Native Reusables. Dark colours come
+ * from the docs/ designs; light is a derived scheme. Keep card fills subtle:
+ * the reference screens distinguish cards mainly by their borders.
  *
- * The vocabulary is shadcn's, because React Native Reusables components are
- * written against it. §30 asks for semantic *concepts* rather than particular
- * identifiers, so nothing in the spec is given up by using those names.
- *
- * The dark values are sampled from the target designs in `docs/`, not eyeballed
- * — background #02121A, cyan #49C4E4, border #22475F, record #FB3A5C. The light
- * values are *derived* from the same hues with inverted lightness: the mockups
- * are dark-only, so light is an interpretation and is expected to be refined
- * once it is designed properly.
- *
- * Note the surface treatment: in the designs a card is barely lighter than the
- * page and is read by its *border*, not by a fill. Keep it that way — filling
- * cards is what turns this into a generic dark theme.
- *
- * STRUCTURE IS LOAD-BEARING. Per-theme values go in `@layer theme` under
- * `:root` with Uniwind's `@variant <name>` directive. This is the only form
- * `Uniwind.setTheme()` can switch between. A `@media (prefers-color-scheme)`
- * block follows the device but never responds to the in-app control, and a
- * `.dark` class block never matches at all — Uniwind's `@custom-variant dark`
- * exists for `dark:` utility variants, not for raw token blocks. Both were
- * tried; neither works.
- *
- * `@theme` below still declares every colour so Tailwind generates the
- * utilities (`bg-background`, `text-muted-foreground`, …); the variants only
- * swap the values.
+ * Keep both layers: @theme generates utilities, while @variant inside
+ * @layer theme/:root lets Uniwind.setTheme() switch their values. A media
+ * query will not follow the in-app switch; a .dark selector does not match.
  */
 @theme {
   --color-background: hsl(200 40% 97%);
@@ -55,9 +35,6 @@
   --radius-lg: 16px;
   --radius-full: 9999px;
 
-  /* The designs are monospace throughout — it is the loudest thing about the
-     typography, so it is bundled rather than left to whatever the device
-     ships as its system mono. */
   --font-mono: 'JetBrainsMono_400Regular';
 }
 

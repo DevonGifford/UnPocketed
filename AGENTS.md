@@ -2,7 +2,7 @@
 
 Unpocketed is a local-first Android app for recording, importing, transcribing and exporting spoken audio. No backend, no account, no subscription — users bring their own transcription provider and API key.
 
-The app is scaffolded (PR1): Expo SDK 57, Expo Router, Uniwind with Tailwind 4, TypeScript strict, four screens on mock data. Recording, storage and transcription are not built — PR3 onward.
+The app uses Expo SDK 57, Expo Router, Uniwind with Tailwind 4, and strict TypeScript. Recording and file persistence are implemented; the Library, playback, and transcription still use mock data or placeholders. The target UI is being built ahead of some v0.1 behavior, as recorded in the decision map.
 
 ## Read before changing anything
 
@@ -17,6 +17,16 @@ The app is scaffolded (PR1): Expo SDK 57, Expo Router, Uniwind with Tailwind 4, 
 **Recordings stay on the device** until the user explicitly asks for cloud transcription. There is no Unpocketed server to send anything to, and §6 keeps it that way.
 
 **Devon stages and commits.** Write files to the working tree and stop there; leave the git index and history to him.
+
+## Comments and commit messages
+
+Keep source comments sparse. Explain non-obvious constraints, failure behavior, and decisions that code alone cannot show. Use JSDoc for public APIs when parameters, return values, or examples help a caller; do not restate TypeScript types or narrate JSX.
+
+When drafting a commit message for Devon for Codex-assisted work, include this trailer so he can preserve the attribution if he chooses:
+
+```text
+Co-Authored-By: codex <codex@openai.com>
+```
 
 ## Gotchas already paid for
 
