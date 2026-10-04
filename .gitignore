@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native builds
+android/
+ios/
+*.apk
+*.aab
+*.ipa
+*.keystore
+!debug.keystore
+
+# Metro
+.metro-health-check*
+.haste_map.json
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+
+# Logs
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local scratch space. The wayfinder decision map lives in .scratch/ and is
+# tracked on purpose — a fresh clone should still carry the open decisions.
+# Uncomment to keep planning artefacts out of the published repo.
+# .scratch/
