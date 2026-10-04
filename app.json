@@ -18,8 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.unpocketed.app",
-      "edgeToEdgeEnabled": true
+      "package": "com.unpocketed.app"
     },
     "web": {
       "output": "static",
