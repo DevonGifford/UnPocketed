@@ -1,12 +1,12 @@
 import { FlatList, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { RecordingRow } from "@/components/recording-row";
 import { mockRecordings } from "@/mocks/recordings";
 
-/** The library (§15): every Recording, newest first, regardless of source. */
-export function LibraryScreen() {
+/** The recordings list (§15): every Recording, newest first, regardless of source. */
+export function RecordingsScreen() {
   const router = useRouter();
   const data = [...mockRecordings].sort((a, b) =>
     b.createdAt.localeCompare(a.createdAt),

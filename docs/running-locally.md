@@ -37,13 +37,28 @@ Go back to `pnpm expo run:android` only when you add or change a native dependen
 
 ## 2. In a web browser — interface only
 
+> [!WARNING]
+> **Browser mode is currently broken** and has been since the move to Uniwind
+> (v0.0.2). The app bundles and serves, but React never mounts — the page stays
+> blank with `TypeError: Cannot read properties of undefined (reading
+> 'default')` in the console.
+>
+> This is an upstream Uniwind bug, not a configuration mistake:
+> [uni-stack/uniwind#704](https://github.com/uni-stack/uniwind/issues/704),
+> a circular import when `react-native-web` 0.21.3+ loads the React Native root
+> via `InputAccessoryView`. We are on exactly 0.21.3. It has been fixed three
+> times upstream (#697, #703, #706) and regressed, and the issue is open.
+>
+> **Android is unaffected.** Use a device until this clears; re-test by simply
+> running the command below once Uniwind updates.
+
 ```bash
 pnpm expo start --web
 ```
 
-Serves the app at `http://localhost:8081` through `react-native-web`. No device, no cable, no native build, and all six routes render.
+Serves the app at `http://localhost:8081` through `react-native-web`. No device, no cable, no native build.
 
-**What it is good for.** At the moment, a great deal: every screen runs on mock fixtures, so layout, design tokens, dark mode and navigation all iterate faster in a browser than on hardware.
+**What it is good for, when it works.** Every screen runs on mock fixtures, so layout, design tokens, dark mode and navigation all iterate faster in a browser than on hardware.
 
 **What it will never do.** Web is a development convenience, not a product surface — §6 of the spec lists "a web dashboard" among the explicit non-goals, and a web companion is parked as a future idea rather than planned work. None of the features that define the app have a web implementation:
 

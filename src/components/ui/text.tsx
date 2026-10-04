@@ -1,0 +1,111 @@
+import { cn } from '@/lib/utils';
+import { Slot } from '@rn-primitives/slot';
+import { cva, type VariantProps } from 'class-variance-authority';
+import * as React from 'react';
+import { Platform, Text as RNText, type Role } from 'react-native';
+
+const textVariants = cva(
+  cn(
+    // `font-mono` sits in the base rather than on each variant: the target
+    // designs are monospace throughout, so it is the default rather than an
+    // exception. §30's token layer owns which face that resolves to.
+    'text-foreground text-base font-mono',
+    Platform.select({
+      web: 'select-text',
+    })
+  ),
+  {
+    variants: {
+      variant: {
+        default: '',
+        h1: cn(
+          'text-center text-4xl font-extrabold tracking-tight',
+          Platform.select({ web: 'scroll-m-20 text-balance' })
+        ),
+        h2: cn(
+          'border-border border-b pb-2 text-3xl font-semibold tracking-tight',
+          Platform.select({ web: 'scroll-m-20 first:mt-0' })
+        ),
+        h3: cn('text-2xl font-semibold tracking-tight', Platform.select({ web: 'scroll-m-20' })),
+        h4: cn('text-xl font-semibold tracking-tight', Platform.select({ web: 'scroll-m-20' })),
+        p: 'mt-3 leading-7 sm:mt-6',
+        blockquote: 'mt-4 border-l-2 pl-3 italic sm:mt-6 sm:pl-6',
+        code: cn(
+          'bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm font-semibold'
+        ),
+        lead: 'text-muted-foreground text-xl',
+        large: 'text-lg font-semibold',
+        small: 'text-sm font-medium leading-none',
+        muted: 'text-muted-foreground text-sm',
+
+        /*
+         * Unpocketed's own type ramp (§28 "strong typography"). Kept alongside
+         * the registry's document-oriented variants rather than replacing them,
+         * because Button and AlertDialog both render this component and rely on
+         * the defaults above. Screens pick a semantic variant rather than a font
+         * size, so the scale stays in one place.
+         *
+         * `timer` has no equivalent in a general-purpose ramp: the record screen
+         * (§11) shows elapsed time as the largest element on the screen, and it
+         * must be tabular so the digits do not jitter as they count.
+         */
+        title: 'text-[28px] leading-tight font-semibold text-foreground',
+        headline: 'text-[17px] font-semibold text-foreground',
+        body: 'text-[16px] leading-6 text-foreground',
+        subhead: 'text-[15px] text-muted-foreground',
+        caption: 'text-[13px] text-muted-foreground',
+        timer: 'text-[56px] font-light tabular-nums text-foreground',
+      },
+    },
+    defaultVariants: {
+      variant: 'default',
+    },
+  }
+);
+
+type TextVariantProps = VariantProps<typeof textVariants>;
+
+type TextVariant = NonNullable<TextVariantProps['variant']>;
+
+const ROLE: Partial<Record<TextVariant, Role>> = {
+  h1: 'heading',
+  h2: 'heading',
+  h3: 'heading',
+  h4: 'heading',
+  blockquote: Platform.select({ web: 'blockquote' as Role }),
+  code: Platform.select({ web: 'code' as Role }),
+};
+
+const ARIA_LEVEL: Partial<Record<TextVariant, string>> = {
+  h1: '1',
+  h2: '2',
+  h3: '3',
+  h4: '4',
+};
+
+const TextClassContext = React.createContext<string | undefined>(undefined);
+
+function Text({
+  className,
+  asChild = false,
+  variant = 'default',
+  ...props
+}: React.ComponentProps<typeof RNText> &
+  React.RefAttributes<typeof RNText> &
+  TextVariantProps & {
+    asChild?: boolean;
+  }) {
+  const textClass = React.useContext(TextClassContext);
+  const Component = asChild ? Slot : RNText;
+  return (
+    <Component
+      className={cn(textVariants({ variant }), textClass, className)}
+      role={variant ? ROLE[variant] : undefined}
+      aria-level={variant ? ARIA_LEVEL[variant] : undefined}
+      {...props}
+    />
+  );
+}
+
+export { Text, TextClassContext, textVariants };
+export type { TextVariant };

@@ -1,5 +1,5 @@
 import { Pressable, View } from "react-native";
-import { Text } from "./text";
+import { Text } from "@/components/ui/text";
 import { TranscriptionStatus } from "./transcription-status";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 import type { MockRecording } from "@/mocks/recordings";
@@ -20,7 +20,7 @@ export function RecordingRow({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${recording.title}, ${formatDuration(recording.durationMs)}`}
-      className="min-h-[64px] justify-center border-b border-line px-4 py-3 active:bg-surface"
+      className="min-h-[64px] justify-center border-b border-border px-4 py-3 active:bg-card"
     >
       <Text variant="headline" numberOfLines={1}>
         {recording.title}

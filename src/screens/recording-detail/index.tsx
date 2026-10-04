@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 import { findMockRecording } from "@/mocks/recordings";
 
@@ -63,20 +63,20 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         </View>
 
         {/* Playback (§16) — available whether or not a transcript exists. */}
-        <View className="border-y border-line px-4 py-5">
+        <View className="border-y border-border px-4 py-5">
           <View className="flex-row items-center justify-center gap-8">
             <Action label="−15s" />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Play recording"
-              className="h-16 w-16 items-center justify-center rounded-full border border-line active:opacity-60"
+              className="h-16 w-16 items-center justify-center rounded-full border border-border active:opacity-60"
             >
               <Text variant="headline">▶</Text>
             </Pressable>
             <Action label="+15s" />
           </View>
-          <View className="mt-4 h-1 rounded-full bg-line">
-            <View className="h-1 w-1/3 rounded-full bg-muted" />
+          <View className="mt-4 h-1 rounded-full bg-border">
+            <View className="h-1 w-1/3 rounded-full bg-muted-foreground" />
           </View>
           <View className="mt-2 flex-row justify-between">
             <Text variant="caption" className="tabular-nums">
@@ -103,7 +103,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
                   : "This recording has not been transcribed yet."}
             </Text>
             <View className="flex-row">
-              <View className="rounded-md border border-line">
+              <View className="rounded-md border border-border">
                 <Action
                   label={
                     recording.transcriptionState === "failed"
@@ -127,10 +127,10 @@ export function RecordingDetailScreen({ id }: { id: string }) {
                     accessibilityState={{ selected: isSelected }}
                     accessibilityLabel={`${t.modelId} transcript`}
                     className={`min-h-[36px] justify-center rounded-full border px-3 ${
-                      isSelected ? "border-ink bg-surface" : "border-line"
+                      isSelected ? "border-foreground bg-card" : "border-border"
                     }`}
                   >
-                    <Text variant="caption" className={isSelected ? "text-ink" : ""}>
+                    <Text variant="caption" className={isSelected ? "text-foreground" : ""}>
                       {t.modelId}
                     </Text>
                   </Pressable>
@@ -152,7 +152,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           </>
         )}
 
-        <View className="mt-8 border-t border-line">
+        <View className="mt-8 border-t border-border">
           <Action label="Retranscribe with another model" />
           <Action label="Export transcript" />
           <Action label="Share original audio" />

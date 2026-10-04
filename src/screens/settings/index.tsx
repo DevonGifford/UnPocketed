@@ -1,6 +1,6 @@
 import { ScrollView, View } from "react-native";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { SettingRow } from "@/components/setting-row";
 
 /** Settings (§19). Provider, model and key are the only MVP configuration. */
@@ -14,7 +14,7 @@ export function SettingsScreen() {
           </Text>
         </View>
 
-        <View className="border-t border-line">
+        <View className="border-t border-border">
           <SettingRow label="Provider" value="Not configured" />
           <SettingRow label="Model" value="—" />
           <SettingRow label="API key" value="Not set" />
@@ -34,7 +34,7 @@ export function SettingsScreen() {
             ABOUT
           </Text>
         </View>
-        <View className="border-t border-line">
+        <View className="border-t border-border">
           <SettingRow label="Version" value="0.1.0" />
           <SettingRow label="Licence" value="MIT" />
         </View>

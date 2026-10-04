@@ -1,7 +1,7 @@
 import { Pressable, View } from "react-native";
 import { Link } from "expo-router";
 import { Screen } from "@/components/screen";
-import { Text } from "@/components/text";
+import { Text } from "@/components/ui/text";
 import { useRecordingSession } from "@/features/recording";
 import { formatDuration } from "@/lib/format";
 
@@ -79,8 +79,8 @@ export function RecordScreen() {
             <View
               className={
                 isRecording
-                  ? "h-7 w-7 rounded-sm bg-onAccent"
-                  : "h-7 w-7 rounded-full bg-onAccent"
+                  ? "h-7 w-7 rounded-sm bg-record-foreground"
+                  : "h-7 w-7 rounded-full bg-record-foreground"
               }
             />
           </View>
@@ -96,7 +96,7 @@ export function RecordScreen() {
         "your recording is safe" must only appear when it is true (§3.2).
       */}
       {failure ? (
-        <View className="mx-4 mb-4 gap-2 rounded-md border border-line bg-surface p-4">
+        <View className="mx-4 mb-4 gap-2 rounded-md border border-border bg-card p-4">
           <Text variant="headline">{failure.title}</Text>
           <Text variant="body">{failure.detail}</Text>
           <Pressable
@@ -111,13 +111,13 @@ export function RecordScreen() {
       ) : null}
 
       <View className="items-center pb-6">
-        <Link href="/library" asChild>
+        <Link href="/recordings" asChild>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Open library"
+            accessibilityLabel="Open recordings"
             className="min-h-[44px] justify-center px-6"
           >
-            <Text variant="subhead">Library</Text>
+            <Text variant="subhead">Recordings</Text>
           </Pressable>
         </Link>
       </View>

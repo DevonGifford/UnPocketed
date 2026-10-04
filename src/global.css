@@ -1,34 +1,85 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@import 'uniwind';
 
 /*
- * Design tokens (§30). Values are HSL channels so Tailwind can apply opacity.
- * Palette is deliberately restrained (§28): near-neutral greys, one accent
- * reserved for the recording state. No gradients, no brand colour wash.
+ * §30: shadcn token names support React Native Reusables. Dark colours come
+ * from the docs/ designs; light is a derived scheme. Keep card fills subtle:
+ * the reference screens distinguish cards mainly by their borders.
+ *
+ * Keep both layers: @theme generates utilities, while @variant inside
+ * @layer theme/:root lets Uniwind.setTheme() switch their values. A media
+ * query will not follow the in-app switch; a .dark selector does not match.
  */
-@layer base {
-  :root {
-    --canvas: 0 0% 98%;
-    --surface: 0 0% 100%;
-    --line: 240 6% 90%;
-    --ink: 240 6% 10%;
-    --muted: 240 4% 46%;
-    --record: 0 72% 51%;
-    --destructive: 0 72% 51%;
-    --on-accent: 0 0% 100%;
-  }
+@theme {
+  --color-background: hsl(200 40% 97%);
+  --color-foreground: hsl(200 50% 10%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(200 50% 10%);
+  --color-primary: hsl(192 80% 32%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(200 30% 93%);
+  --color-secondary-foreground: hsl(200 50% 10%);
+  --color-muted: hsl(200 30% 93%);
+  --color-muted-foreground: hsl(204 25% 42%);
+  --color-accent: hsl(200 30% 93%);
+  --color-accent-foreground: hsl(192 80% 32%);
+  --color-destructive: hsl(349 75% 45%);
+  --color-border: hsl(204 30% 84%);
+  --color-input: hsl(204 30% 84%);
+  --color-ring: hsl(192 80% 32%);
+  --color-record: hsl(349 80% 48%);
+  --color-record-foreground: hsl(0 0% 100%);
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --canvas: 240 4% 4%;
-      --surface: 240 3% 9%;
-      --line: 240 4% 16%;
-      --ink: 0 0% 98%;
-      --muted: 240 5% 65%;
-      --record: 0 84% 60%;
-      --destructive: 0 84% 60%;
-      --on-accent: 0 0% 100%;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --font-mono: 'JetBrainsMono_400Regular';
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: hsl(200 40% 97%);
+      --color-foreground: hsl(200 50% 10%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(200 50% 10%);
+      --color-primary: hsl(192 80% 32%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(200 30% 93%);
+      --color-secondary-foreground: hsl(200 50% 10%);
+      --color-muted: hsl(200 30% 93%);
+      --color-muted-foreground: hsl(204 25% 42%);
+      --color-accent: hsl(200 30% 93%);
+      --color-accent-foreground: hsl(192 80% 32%);
+      --color-destructive: hsl(349 75% 45%);
+      --color-border: hsl(204 30% 84%);
+      --color-input: hsl(204 30% 84%);
+      --color-ring: hsl(192 80% 32%);
+      --color-record: hsl(349 80% 48%);
+      --color-record-foreground: hsl(0 0% 100%);
+    }
+
+    @variant dark {
+      --color-background: hsl(200 86% 5%);
+      --color-foreground: hsl(194 54% 86%);
+      --color-card: hsl(200 77% 7%);
+      --color-card-foreground: hsl(194 54% 86%);
+      --color-primary: hsl(192 74% 59%);
+      --color-primary-foreground: hsl(200 86% 5%);
+      --color-secondary: hsl(204 40% 14%);
+      --color-secondary-foreground: hsl(194 54% 86%);
+      --color-muted: hsl(204 40% 12%);
+      --color-muted-foreground: hsl(204 43% 53%);
+      --color-accent: hsl(204 40% 14%);
+      --color-accent-foreground: hsl(192 74% 59%);
+      --color-destructive: hsl(349 96% 61%);
+      --color-border: hsl(204 47% 25%);
+      --color-input: hsl(204 47% 25%);
+      --color-ring: hsl(192 74% 59%);
+      --color-record: hsl(349 96% 61%);
+      --color-record-foreground: hsl(0 0% 100%);
     }
   }
 }
