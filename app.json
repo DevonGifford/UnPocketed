@@ -36,6 +36,14 @@
             "backgroundColor": "#0B0B0C"
           }
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Unpocketed uses the microphone only to make recordings you start yourself. Recordings stay on this device.",
+          "enableBackgroundRecording": true,
+          "enableBackgroundPlayback": true
+        }
       ]
     ],
     "experiments": {
