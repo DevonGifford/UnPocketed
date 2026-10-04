@@ -1,0 +1,13 @@
+# React Native's Metro resolver does not follow pnpm's strict symlinked layout.
+# NativeWind's Babel transform imports `react-native-css-interop/jsx-runtime`,
+# a transitive dependency that is invisible at the project root under pnpm's
+# default linker, so bundling fails with "Unable to resolve module".
+# A hoisted layout is the documented fix for React Native under pnpm.
+# NOTE: pnpm 11+ reads this from pnpm-workspace.yaml, not .npmrc.
+nodeLinker: hoisted
+
+# pnpm 12 blocks postinstall scripts unless each package is approved by name.
+# unrs-resolver is eslint-config-expo's native (napi-rs) module resolver and
+# needs its build step to produce a binary. Approve new entries deliberately.
+allowBuilds:
+  unrs-resolver: true
