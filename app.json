@@ -18,8 +18,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.unpocketed.app",
-      "edgeToEdgeEnabled": true
+      "package": "com.unpocketed.app"
     },
     "web": {
       "output": "static",
@@ -36,6 +35,14 @@
           "dark": {
             "backgroundColor": "#0B0B0C"
           }
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Unpocketed uses the microphone only to make recordings you start yourself. Recordings stay on this device.",
+          "enableBackgroundRecording": true,
+          "enableBackgroundPlayback": true
         }
       ]
     ],

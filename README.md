@@ -129,50 +129,29 @@ v0.1 ships as ten sequential pieces of work. Full detail is in [§38 of the spec
 
 ### Running Locally
 ----
-There is nothing to run yet — the application has not been scaffolded. The notes below describe what will be required once v0.1 work begins.
 
-<details>
-<summary>Click here to expand</summary>
+Unpocketed runs three ways while in development: as a development build on a physical Android device, in a browser for interface work, or on a device over wireless ADB.
 
-#### Prerequisites
+- **[Android development setup](docs/android-setup.md)** — the one-time toolchain install: JDK, Android SDK, udev rules and phone preparation.
+- **[Running locally](docs/running-locally.md)** — the recurring loop: phone, browser, and getting rid of the USB cable.
 
-- **Node.js** — download it from [here](https://nodejs.org/).
-- **pnpm** — the package manager for this project.
-- **A physical Android device.** Development is tested on real hardware rather than exclusively on an emulator, because recording quality, background behaviour and microphone permissions all behave differently there.
-- **Android Studio**, for the platform SDK and device tooling.
+The short version, once the toolchain is in place:
 
-#### Installation Steps
+```bash
+pnpm install
+pnpm expo run:android      # development build, on a connected device
+pnpm expo start --web      # interface only, in a browser
+```
 
-1. **Clone the Repository:**
-   ```bash
-   git clone git@github.com:DevonGifford/UnPocketed.git
-   ```
+A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services. Browser mode renders the interface but implements none of them — [Running locally](docs/running-locally.md) sets out where that line falls.
 
-2. **Install Dependencies:**
-   ```bash
-   cd UnPocketed
-   pnpm install
-   ```
-
-3. **Build and install a development build:**
-   ```bash
-   pnpm expo run:android
-   ```
-
-   Unpocketed needs native modules for audio recording, secure storage and background services, so **Expo Go is not sufficient** — a development build is required from the point real recording lands.
-
-4. **Configure transcription:**
-
-   Open **Settings** in the app and add your own provider API key. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
+Then **configure transcription**: open **Settings** in the app and add your own provider API key. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
 
 #### Notes
 
 - Transcription is the only feature that requires a network connection. Recording, playback, import, rename, delete, export and reading existing transcripts all work offline.
 - Cloud transcription sends that recording to the external provider you selected, under their pricing and privacy terms.
 - If you hit a problem, check the [Issues](https://github.com/DevonGifford/UnPocketed/issues) page for an existing report, or open a new one.
-
-<!-- CLOSING DIV -->
-</details>
 
 <br/>
 <br/>
@@ -207,6 +186,8 @@ Unpocketed will not ship features designed to conceal that recording is taking p
 |---|---|
 | [Specification](docs/spec.md) | Product and technical spec for v0.1 |
 | [Domain glossary](CONTEXT.md) | The project's vocabulary, and the words to avoid |
+| [Android setup](docs/android-setup.md) | Getting a local build toolchain working |
+| [Running locally](docs/running-locally.md) | Running the app on a phone, in a browser, or over wireless ADB |
 | [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
 | [Decision map](.scratch/v0-1-derisk/map.md) | What is settled, what is still open |
 
