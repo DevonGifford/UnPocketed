@@ -46,8 +46,11 @@
   --color-input: hsl(240 6% 90%);
   --color-ring: hsl(240 6% 10%);
 
-  /* Reserved for the recording state (§13, §31). */
+  /* Reserved for the recording state (§13, §31). Its foreground is white in
+     both schemes: it only ever sits on the record accent, so it must not flip
+     with the colour scheme the way `primary-foreground` does. */
   --color-record: hsl(0 72% 51%);
+  --color-record-foreground: hsl(0 0% 100%);
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -88,5 +91,6 @@
     --color-ring: hsl(0 0% 98%);
 
     --color-record: hsl(0 84% 60%);
+    --color-record-foreground: hsl(0 0% 100%);
   }
 }

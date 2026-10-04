@@ -79,8 +79,8 @@ export function RecordScreen() {
             <View
               className={
                 isRecording
-                  ? "h-7 w-7 rounded-sm bg-primary-foreground"
-                  : "h-7 w-7 rounded-full bg-primary-foreground"
+                  ? "h-7 w-7 rounded-sm bg-record-foreground"
+                  : "h-7 w-7 rounded-full bg-record-foreground"
               }
             />
           </View>
