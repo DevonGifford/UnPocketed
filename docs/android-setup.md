@@ -128,9 +128,12 @@ About **480 MB** at this point. Gradle and the native build will add several GB 
 
 ## 5. Prepare your phone
 
-1. **Settings → About phone**, tap **Build number** seven times to unlock Developer options.
-2. **Settings → System → Developer options**, enable **USB debugging**.
-3. Plug the phone in over USB. A dialog asks you to authorise the computer — accept it, and tick "always allow".
+1. **Settings → About phone**, tap the OS version seven times to unlock Developer options. The label is vendor-specific: **MIUI version** on Xiaomi (the bold string, e.g. `14.0.9.0 TKFEUXM`), **Build number** on stock Android.
+2. Open Developer options — **Settings → Additional settings → Developer options** on Xiaomi/MIUI, **Settings → System → Developer options** on stock Android — and enable **both**:
+   - **USB debugging**.
+   - **Install via USB**. Xiaomi only, and the expensive one to miss: `expo run:android` finishes with `adb install`, which MIUI refuses with `INSTALL_FAILED_USER_RESTRICTED` unless this is on. The refusal arrives *after* the full 10–20 minute build, so set it before you start. It may also demand a signed-in Mi account.
+3. Set **Default USB configuration** to **File transfer**. Charge-only mode hides the ADB interface on some MIUI builds.
+4. Plug the phone in over USB. A dialog asks you to authorise the computer — accept it, and tick "always allow".
 
 On Linux, add yourself to the group the udev rules use, then log out and back in:
 
@@ -140,13 +143,24 @@ sudo usermod -aG adbusers "$USER"
 
 `adbusers` is the group named in `/usr/lib/udev/rules.d/51-android.rules` (`GROUP="adbusers"`), installed by `android-udev`. If you are on a distro that ships different rules, check that file rather than assuming the group name.
 
+Those rules also carry `TAG+="uaccess"`, which makes systemd-logind grant the active local user an ACL on the device node directly. Where that applies the group membership is belt-and-braces rather than load-bearing, so `id -nG` omitting `adbusers` is not on its own an explanation for a device that will not appear — check the ACL with `getfacl /dev/bus/usb/<bus>/<dev>` before chasing it.
+
 Confirm the device is visible:
 
 ```bash
 adb devices      # expect: <serial>  device
 ```
 
-`unauthorized` means you have not accepted the on-device dialog. An empty list usually means the udev rules or group membership have not taken effect yet — a full logout is genuinely required, not just a new terminal.
+`unauthorized` means you have not accepted the on-device dialog.
+
+An **empty list** has two unrelated causes, and the USB descriptors tell them apart before you start changing anything:
+
+```bash
+lsusb                                   # find the phone's <vid>:<pid>
+lsusb -d <vid>:<pid> -v | grep -E "bNumInterfaces|bInterfaceClass"
+```
+
+With USB debugging off the phone exposes a single interface, class 6 (Imaging — MTP/PTP). With it on, a **second interface appears at class ff, subclass 42, protocol 1**: that is ADB. If that interface is absent the fault is on the phone and no amount of udev or group work will fix it — go back to step 2. Only once it is present do the host-side causes (udev rules, group membership, a full logout) become worth investigating.
 
 ---
 
@@ -163,6 +177,8 @@ The first build downloads Gradle and compiles native code — expect **10–20 m
 
 This produces a **development build**, not Expo Go. Unpocketed needs native modules for audio recording, secure storage and foreground services, so Expo Go is not sufficient once real recording lands (§7).
 
+That is the one-time install finished. For the day-to-day loop — running against Metro without rebuilding, testing the interface in a browser, or working untethered over wireless ADB — see **[Running locally](running-locally.md)**.
+
 ---
 
 ## Troubleshooting
@@ -173,7 +189,7 @@ This produces a **development build**, not Expo Go. Unpocketed needs native modu
 
 **`Failed to install the following Android SDK packages as some licences have not been accepted`** — run `sdkmanager --licenses`.
 
-**`adb: no devices/emulators found`** — in order: is USB debugging on, was the authorisation dialog accepted, is the cable a data cable rather than charge-only, and have you logged out since the `usermod`?
+**`adb: no devices/emulators found`** — check the USB interface list (§5) before suspecting the host. Then, in order: is USB debugging on, is **Install via USB** on if this is a Xiaomi, was the authorisation dialog accepted, is the cable a data cable rather than charge-only, and have you logged out since the `usermod`?
 
 **Gradle runs out of memory** — add `org.gradle.jvmargs=-Xmx4g` to `android/gradle.properties`. That file only exists after a prebuild.
 
