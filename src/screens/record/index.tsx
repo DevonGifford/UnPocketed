@@ -1,49 +1,24 @@
-import { useEffect, useRef, useState } from "react";
 import { Pressable, View } from "react-native";
 import { Link } from "expo-router";
 import { Screen } from "@/components/screen";
 import { Text } from "@/components/text";
+import { useRecordingSession } from "@/features/recording";
 import { formatDuration } from "@/lib/format";
 
 /**
  * The record screen (§11). One obvious action, and enough information to be
- * certain recording is active. PR1 mocks the session: the timer is real, the
- * audio is not — PR3 replaces `useMockSession` with expo-audio.
+ * certain recording is active. PR3 replaced PR1's mocked session with
+ * `useRecordingSession`, so the timer, the audio and the saved file are all
+ * real.
  */
-function useMockSession() {
-  const [isRecording, setIsRecording] = useState(false);
-  const [elapsedMs, setElapsedMs] = useState(0);
-  const startedAt = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (!isRecording) return;
-    startedAt.current = Date.now() - elapsedMs;
-    const id = setInterval(() => {
-      if (startedAt.current !== null) {
-        setElapsedMs(Date.now() - startedAt.current);
-      }
-    }, 200);
-    return () => clearInterval(id);
-    // elapsedMs is seeded once per start; re-running on every tick would reset it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isRecording]);
-
-  return {
-    isRecording,
-    elapsedMs,
-    toggle: () => {
-      if (isRecording) {
-        setIsRecording(false);
-        setElapsedMs(0);
-      } else {
-        setIsRecording(true);
-      }
-    },
-  };
-}
-
 export function RecordScreen() {
-  const { isRecording, elapsedMs, toggle } = useMockSession();
+  const { status, elapsedMs, failure, lastSaved, toggle, dismissFailure } =
+    useRecordingSession();
+
+  const isRecording = status === "recording";
+  // Preparing and saving both await native work. The control stays visible but
+  // inert, so a second press cannot start a parallel transition.
+  const isBusy = status === "preparing" || status === "saving";
 
   return (
     <Screen>
@@ -64,8 +39,18 @@ export function RecordScreen() {
           {formatDuration(elapsedMs)}
         </Text>
 
+        {/*
+          Reserved height so the layout does not jump between states — §11
+          forbids anything that creates uncertainty about whether recording is
+          actually happening.
+        */}
         <View className="h-6 items-center justify-center">
-          {isRecording ? <Text variant="subhead">recording…</Text> : null}
+          {status === "preparing" ? <Text variant="subhead">preparing…</Text> : null}
+          {status === "recording" ? <Text variant="subhead">recording…</Text> : null}
+          {status === "saving" ? <Text variant="subhead">saving…</Text> : null}
+          {status === "idle" && lastSaved && !failure ? (
+            <Text variant="subhead">saved to your library</Text>
+          ) : null}
         </View>
 
         {/*
@@ -74,10 +59,15 @@ export function RecordScreen() {
         */}
         <Pressable
           onPress={toggle}
+          disabled={isBusy}
           accessibilityRole="button"
           accessibilityLabel={isRecording ? "Stop recording" : "Start recording"}
-          accessibilityState={{ selected: isRecording }}
-          className="items-center gap-3 active:opacity-70"
+          accessibilityState={{ selected: isRecording, disabled: isBusy }}
+          className={
+            isBusy
+              ? "items-center gap-3 opacity-50"
+              : "items-center gap-3 active:opacity-70"
+          }
         >
           <View
             className={
@@ -99,6 +89,26 @@ export function RecordScreen() {
           </Text>
         </Pressable>
       </View>
+
+      {/*
+        §32: a technical failure becomes an explanation, and says whether the
+        audio survived. `audioIntact` is stated rather than implied, because
+        "your recording is safe" must only appear when it is true (§3.2).
+      */}
+      {failure ? (
+        <View className="mx-4 mb-4 gap-2 rounded-md border border-line bg-surface p-4">
+          <Text variant="headline">{failure.title}</Text>
+          <Text variant="body">{failure.detail}</Text>
+          <Pressable
+            onPress={dismissFailure}
+            accessibilityRole="button"
+            accessibilityLabel="Dismiss message"
+            className="min-h-[44px] justify-center active:opacity-70"
+          >
+            <Text variant="subhead">Dismiss</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View className="items-center pb-6">
         <Link href="/library" asChild>
