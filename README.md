@@ -140,10 +140,10 @@ The short version, once the toolchain is in place:
 ```bash
 pnpm install
 pnpm expo run:android      # development build, on a connected device
-pnpm expo start --web      # interface only, in a browser
+pnpm expo start --web      # interface only, in a browser (see note below)
 ```
 
-A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services. Browser mode renders the interface but implements none of them — [Running locally](docs/running-locally.md) sets out where that line falls.
+A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services. Browser mode renders the interface but implements none of them — [Running locally](docs/running-locally.md) sets out where that line falls, and notes that browser mode is **currently broken** by an upstream Uniwind bug.
 
 Then **configure transcription**: open **Settings** in the app and add your own provider API key. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
 

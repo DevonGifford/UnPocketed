@@ -235,9 +235,11 @@ pnpm.
 
 **Styling**
 
-NativeWind with Tailwind-style utility classes.
+Uniwind with Tailwind 4 utility classes.
 
-NativeWind is chosen because the project author is already highly familiar with utility-first Tailwind styling and there is little value in forcing the application to use `StyleSheet` purely as a learning exercise.
+A utility-first Tailwind approach is chosen because the project author is already highly familiar with it, and there is little value in forcing the application to use `StyleSheet` purely as a learning exercise.
+
+Uniwind is the binding, replacing NativeWind as of v0.0.2. NativeWind has no stable Tailwind 4 line — its released version pairs with Tailwind 3, and its Tailwind 4 branch remains a release candidate. Uniwind is stable, needs no Babel plugin, and is measurably faster.
 
 React Native layout and platform behaviour should still be understood rather than assuming browser CSS semantics.
 
@@ -892,7 +894,7 @@ If Home and Library naturally become the same screen, they should be merged.
 
 # 30. Styling
 
-NativeWind is the primary styling approach.
+Uniwind is the primary styling approach.
 
 Tailwind utility classes should be used for normal component styling and layout.
 
