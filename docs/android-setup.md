@@ -99,11 +99,30 @@ Then `source ~/.bashrc` or open a new terminal. Both variable names are set beca
 ## 4. Install the SDK packages
 
 ```bash
-sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-sdkmanager --licenses      # accept each prompt
+sdkmanager --install "platform-tools" "platforms;android-36" "build-tools;36.1.0"
 ```
 
-Licence acceptance is mandatory — Gradle fails the build without it, with an error that does not obviously say so.
+**Platform 36 is the one that matters** — Expo SDK 57 compiles against Android 16 (API 36). Newer packages exist (platform 37, build-tools 37.0.0) and installing them does no harm, but they are not what this project targets.
+
+### Two things changed recently
+
+**`sdkmanager` is deprecated.** In cmdline-tools 23.0.0 it prints a warning and forwards to the new Android CLI. The commands above still work; the modern equivalent is `android sdk`. Package paths in the new CLI's listings use `/` (`platforms/android-36`) while `sdkmanager` still takes `;` (`platforms;android-36`). Both reach the same package.
+
+**Licences are now accepted on install.** The old `sdkmanager --licenses` ritual, and the Gradle failure that followed forgetting it, no longer applies: installing a package writes `$ANDROID_HOME/licenses/android-sdk-license` for you. If a build ever does complain about licences, that command still exists as a fallback.
+
+---
+
+### What a correct install looks like
+
+```
+$ sdkmanager --list_installed
+build-tools/36.1.0      36.1.0     Android SDK Build-Tools 36.1
+cmdline-tools/latest    23.0.0     Android SDK Command-line Tools (latest)
+platform-tools          37.0.1     Android SDK Platform-Tools
+platforms/android-36    2.0.0      Android SDK Platform 36
+```
+
+About **480 MB** at this point. Gradle and the native build will add several GB more on first build.
 
 ---
 
@@ -118,6 +137,8 @@ On Linux, add yourself to the group the udev rules use, then log out and back in
 ```bash
 sudo usermod -aG adbusers "$USER"
 ```
+
+`adbusers` is the group named in `/usr/lib/udev/rules.d/51-android.rules` (`GROUP="adbusers"`), installed by `android-udev`. If you are on a distro that ships different rules, check that file rather than assuming the group name.
 
 Confirm the device is visible:
 
