@@ -9,14 +9,14 @@ import {
 } from "@expo-google-fonts/jetbrains-mono";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useColorScheme } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { navColors } from "@/theme/navigation";
+import { SchemeProvider, useScheme } from "@/theme/scheme";
 
 SplashScreen.preventAutoHideAsync();
 
-export default function RootLayout() {
+function RootNavigator() {
   // The designs are monospace throughout, so the interface is wrong until the
   // typeface is in. Holding the splash avoids a visible reflow from the system
   // font to JetBrains Mono on launch.
@@ -30,8 +30,8 @@ export default function RootLayout() {
     if (fontsLoaded) void SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
-  const scheme = useColorScheme();
-  const c = navColors[scheme === "dark" ? "dark" : "light"];
+  const { scheme } = useScheme();
+  const c = navColors[scheme];
 
   if (!fontsLoaded) return null;
 
@@ -70,5 +70,13 @@ export default function RootLayout() {
       */}
       <PortalHost />
     </SafeAreaProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <SchemeProvider>
+      <RootNavigator />
+    </SchemeProvider>
   );
 }

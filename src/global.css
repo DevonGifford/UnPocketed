@@ -9,48 +9,44 @@
  * identifiers, so nothing in the spec is given up by using those names.
  *
  * The dark values are sampled from the target designs in `docs/`, not eyeballed
- * — background #02121A, cyan #49C4E4, border #22475F, record #FB3A5C and so on.
- * The light values are *derived* from the same hues with inverted lightness:
- * the mockups are dark-only, so light mode is an interpretation rather than a
- * specification, and is expected to be refined once it is designed properly.
+ * — background #02121A, cyan #49C4E4, border #22475F, record #FB3A5C. The light
+ * values are *derived* from the same hues with inverted lightness: the mockups
+ * are dark-only, so light is an interpretation and is expected to be refined
+ * once it is designed properly.
  *
  * Note the surface treatment: in the designs a card is barely lighter than the
  * page and is read by its *border*, not by a fill. Keep it that way — filling
  * cards is what turns this into a generic dark theme.
  *
- * Dark mode flips the tokens themselves rather than requiring `dark:` on every
- * element. `Uniwind.setTheme()` drives this through React Native's
- * `Appearance.setColorScheme`, so the in-app theme toggle and the system
- * setting both land here.
+ * STRUCTURE IS LOAD-BEARING. Per-theme values go in `@layer theme` under
+ * `:root` with Uniwind's `@variant <name>` directive. This is the only form
+ * `Uniwind.setTheme()` can switch between. A `@media (prefers-color-scheme)`
+ * block follows the device but never responds to the in-app control, and a
+ * `.dark` class block never matches at all — Uniwind's `@custom-variant dark`
+ * exists for `dark:` utility variants, not for raw token blocks. Both were
+ * tried; neither works.
+ *
+ * `@theme` below still declares every colour so Tailwind generates the
+ * utilities (`bg-background`, `text-muted-foreground`, …); the variants only
+ * swap the values.
  */
 @theme {
   --color-background: hsl(200 40% 97%);
   --color-foreground: hsl(200 50% 10%);
-
   --color-card: hsl(0 0% 100%);
   --color-card-foreground: hsl(200 50% 10%);
-
   --color-primary: hsl(192 80% 32%);
   --color-primary-foreground: hsl(0 0% 100%);
-
   --color-secondary: hsl(200 30% 93%);
   --color-secondary-foreground: hsl(200 50% 10%);
-
   --color-muted: hsl(200 30% 93%);
   --color-muted-foreground: hsl(204 25% 42%);
-
   --color-accent: hsl(200 30% 93%);
   --color-accent-foreground: hsl(192 80% 32%);
-
   --color-destructive: hsl(349 75% 45%);
-
   --color-border: hsl(204 30% 84%);
   --color-input: hsl(204 30% 84%);
   --color-ring: hsl(192 80% 32%);
-
-  /* Reserved for the recording state (§13, §31). Its foreground is white in
-     both schemes: it only ever sits on the record accent, so it must not flip
-     with the colour scheme the way `primary-foreground` does. */
   --color-record: hsl(349 80% 48%);
   --color-record-foreground: hsl(0 0% 100%);
 
@@ -65,33 +61,48 @@
   --font-mono: 'JetBrainsMono_400Regular';
 }
 
-@media (prefers-color-scheme: dark) {
+@layer theme {
   :root {
-    --color-background: hsl(200 86% 5%);
-    --color-foreground: hsl(194 54% 86%);
+    @variant light {
+      --color-background: hsl(200 40% 97%);
+      --color-foreground: hsl(200 50% 10%);
+      --color-card: hsl(0 0% 100%);
+      --color-card-foreground: hsl(200 50% 10%);
+      --color-primary: hsl(192 80% 32%);
+      --color-primary-foreground: hsl(0 0% 100%);
+      --color-secondary: hsl(200 30% 93%);
+      --color-secondary-foreground: hsl(200 50% 10%);
+      --color-muted: hsl(200 30% 93%);
+      --color-muted-foreground: hsl(204 25% 42%);
+      --color-accent: hsl(200 30% 93%);
+      --color-accent-foreground: hsl(192 80% 32%);
+      --color-destructive: hsl(349 75% 45%);
+      --color-border: hsl(204 30% 84%);
+      --color-input: hsl(204 30% 84%);
+      --color-ring: hsl(192 80% 32%);
+      --color-record: hsl(349 80% 48%);
+      --color-record-foreground: hsl(0 0% 100%);
+    }
 
-    --color-card: hsl(200 77% 7%);
-    --color-card-foreground: hsl(194 54% 86%);
-
-    --color-primary: hsl(192 74% 59%);
-    --color-primary-foreground: hsl(200 86% 5%);
-
-    --color-secondary: hsl(204 40% 14%);
-    --color-secondary-foreground: hsl(194 54% 86%);
-
-    --color-muted: hsl(204 40% 12%);
-    --color-muted-foreground: hsl(204 43% 53%);
-
-    --color-accent: hsl(204 40% 14%);
-    --color-accent-foreground: hsl(192 74% 59%);
-
-    --color-destructive: hsl(349 96% 61%);
-
-    --color-border: hsl(204 47% 25%);
-    --color-input: hsl(204 47% 25%);
-    --color-ring: hsl(192 74% 59%);
-
-    --color-record: hsl(349 96% 61%);
-    --color-record-foreground: hsl(0 0% 100%);
+    @variant dark {
+      --color-background: hsl(200 86% 5%);
+      --color-foreground: hsl(194 54% 86%);
+      --color-card: hsl(200 77% 7%);
+      --color-card-foreground: hsl(194 54% 86%);
+      --color-primary: hsl(192 74% 59%);
+      --color-primary-foreground: hsl(200 86% 5%);
+      --color-secondary: hsl(204 40% 14%);
+      --color-secondary-foreground: hsl(194 54% 86%);
+      --color-muted: hsl(204 40% 12%);
+      --color-muted-foreground: hsl(204 43% 53%);
+      --color-accent: hsl(204 40% 14%);
+      --color-accent-foreground: hsl(192 74% 59%);
+      --color-destructive: hsl(349 96% 61%);
+      --color-border: hsl(204 47% 25%);
+      --color-input: hsl(204 47% 25%);
+      --color-ring: hsl(192 74% 59%);
+      --color-record: hsl(349 96% 61%);
+      --color-record-foreground: hsl(0 0% 100%);
+    }
   }
 }
