@@ -79,8 +79,8 @@ export function RecordScreen() {
             <View
               className={
                 isRecording
-                  ? "h-7 w-7 rounded-sm bg-on-accent"
-                  : "h-7 w-7 rounded-full bg-on-accent"
+                  ? "h-7 w-7 rounded-sm bg-primary-foreground"
+                  : "h-7 w-7 rounded-full bg-primary-foreground"
               }
             />
           </View>
@@ -96,7 +96,7 @@ export function RecordScreen() {
         "your recording is safe" must only appear when it is true (§3.2).
       */}
       {failure ? (
-        <View className="mx-4 mb-4 gap-2 rounded-md border border-line bg-surface p-4">
+        <View className="mx-4 mb-4 gap-2 rounded-md border border-border bg-card p-4">
           <Text variant="headline">{failure.title}</Text>
           <Text variant="body">{failure.detail}</Text>
           <Pressable

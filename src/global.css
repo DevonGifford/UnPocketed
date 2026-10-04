@@ -2,24 +2,52 @@
 @import 'uniwind';
 
 /*
- * Design tokens (§30). Values are unchanged from the NativeWind/Tailwind 3
- * setup — only the mechanism moved. Tailwind 4 is CSS-first, so these live in
- * `@theme` rather than in a `tailwind.config.js`, and they are real colours
- * rather than bare HSL channels: Tailwind 4 handles opacity modifiers
- * (`bg-canvas/50`) natively, so the `<alpha-value>` plumbing is gone.
+ * Design tokens (§30).
  *
- * Palette is deliberately restrained (§28): near-neutral greys, one accent
- * reserved for the recording state. No gradients, no brand colour wash.
+ * The vocabulary is shadcn's, because React Native Reusables components are
+ * written against it — `bg-card`, `text-muted-foreground`, `border-border` and
+ * so on. Adopting those names means a component copied from the registry works
+ * unmodified instead of needing its classes rewritten on every import, and §30
+ * asks for semantic *concepts* rather than particular identifiers, so nothing
+ * in the spec is given up by it.
+ *
+ * `--color-record` is ours, not shadcn's: §13 wants the recording state to have
+ * a reserved colour, and no general-purpose palette has that concept.
+ *
+ * Values are the existing restrained zinc palette (§28), unchanged where a
+ * token already existed. The tokens that are new here are derived from the same
+ * family rather than copied from shadcn's defaults, so the app keeps its own
+ * look instead of inheriting a stock one. `primary` is deliberately plain ink
+ * for now — the cyan accent from the target designs lands with the palette
+ * work, not with this rename.
  */
 @theme {
-  --color-canvas: hsl(0 0% 98%);
-  --color-surface: hsl(0 0% 100%);
-  --color-line: hsl(240 6% 90%);
-  --color-ink: hsl(240 6% 10%);
-  --color-muted: hsl(240 4% 46%);
-  --color-record: hsl(0 72% 51%);
+  --color-background: hsl(0 0% 98%);
+  --color-foreground: hsl(240 6% 10%);
+
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(240 6% 10%);
+
+  --color-primary: hsl(240 6% 10%);
+  --color-primary-foreground: hsl(0 0% 98%);
+
+  --color-secondary: hsl(240 5% 96%);
+  --color-secondary-foreground: hsl(240 6% 10%);
+
+  --color-muted: hsl(240 5% 96%);
+  --color-muted-foreground: hsl(240 4% 46%);
+
+  --color-accent: hsl(240 5% 96%);
+  --color-accent-foreground: hsl(240 6% 10%);
+
   --color-destructive: hsl(0 72% 51%);
-  --color-on-accent: hsl(0 0% 100%);
+
+  --color-border: hsl(240 6% 90%);
+  --color-input: hsl(240 6% 90%);
+  --color-ring: hsl(240 6% 10%);
+
+  /* Reserved for the recording state (§13, §31). */
+  --color-record: hsl(0 72% 51%);
 
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -35,13 +63,30 @@
  */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-canvas: hsl(240 4% 4%);
-    --color-surface: hsl(240 3% 9%);
-    --color-line: hsl(240 4% 16%);
-    --color-ink: hsl(0 0% 98%);
-    --color-muted: hsl(240 5% 65%);
-    --color-record: hsl(0 84% 60%);
+    --color-background: hsl(240 4% 4%);
+    --color-foreground: hsl(0 0% 98%);
+
+    --color-card: hsl(240 3% 9%);
+    --color-card-foreground: hsl(0 0% 98%);
+
+    --color-primary: hsl(0 0% 98%);
+    --color-primary-foreground: hsl(240 6% 10%);
+
+    --color-secondary: hsl(240 4% 16%);
+    --color-secondary-foreground: hsl(0 0% 98%);
+
+    --color-muted: hsl(240 4% 16%);
+    --color-muted-foreground: hsl(240 5% 65%);
+
+    --color-accent: hsl(240 4% 16%);
+    --color-accent-foreground: hsl(0 0% 98%);
+
     --color-destructive: hsl(0 84% 60%);
-    --color-on-accent: hsl(0 0% 100%);
+
+    --color-border: hsl(240 4% 16%);
+    --color-input: hsl(240 4% 16%);
+    --color-ring: hsl(0 0% 98%);
+
+    --color-record: hsl(0 84% 60%);
   }
 }

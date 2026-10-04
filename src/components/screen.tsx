@@ -10,7 +10,7 @@ export function Screen({
   className?: string;
 }) {
   return (
-    <View className="flex-1 bg-canvas">
+    <View className="flex-1 bg-background">
       <SafeAreaView edges={["top", "bottom"]} className={`flex-1 ${className}`}>
         {children}
       </SafeAreaView>

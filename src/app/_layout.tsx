@@ -14,11 +14,11 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: c.canvas },
-          headerTintColor: c.ink,
+          headerStyle: { backgroundColor: c.background },
+          headerTintColor: c.foreground,
           headerTitleStyle: { fontSize: 17, fontWeight: "600" },
           headerShadowVisible: false,
-          contentStyle: { backgroundColor: c.canvas },
+          contentStyle: { backgroundColor: c.background },
         }}
       >
         <Stack.Screen name="index" options={{ headerShown: false }} />
