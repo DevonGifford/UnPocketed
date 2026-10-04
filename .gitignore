@@ -51,6 +51,18 @@ pnpm-debug.*
 .DS_Store
 Thumbs.db
 
+# Native signing credentials (never commit these)
+*.jks
+*.p12
+*.p8
+*.key
+*.mobileprovision
+
+# Kotlin / merge artefacts
+.kotlin/
+*.orig.*
+.env*.local
+
 # Local scratch space. The wayfinder decision map lives in .scratch/ and is
 # tracked on purpose — a fresh clone should still carry the open decisions.
 # Uncomment to keep planning artefacts out of the published repo.

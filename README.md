@@ -145,7 +145,7 @@ There is nothing to run yet — the application has not been scaffolded. The not
 
 1. **Clone the Repository:**
    ```bash
-   git clone git@github.com:PRINCEdevon/UnPocketed.git
+   git clone git@github.com:DevonGifford/UnPocketed.git
    ```
 
 2. **Install Dependencies:**
@@ -169,7 +169,7 @@ There is nothing to run yet — the application has not been scaffolded. The not
 
 - Transcription is the only feature that requires a network connection. Recording, playback, import, rename, delete, export and reading existing transcripts all work offline.
 - Cloud transcription sends that recording to the external provider you selected, under their pricing and privacy terms.
-- If you hit a problem, check the [Issues](https://github.com/PRINCEdevon/UnPocketed/issues) page for an existing report, or open a new one.
+- If you hit a problem, check the [Issues](https://github.com/DevonGifford/UnPocketed/issues) page for an existing report, or open a new one.
 
 <!-- CLOSING DIV -->
 </details>
@@ -207,7 +207,7 @@ Unpocketed will not ship features designed to conceal that recording is taking p
 |---|---|
 | [Specification](docs/spec.md) | Product and technical spec for v0.1 |
 | [Domain glossary](CONTEXT.md) | The project's vocabulary, and the words to avoid |
-| [AGENT.md](AGENT.md) | Orientation for coding agents working in this repo |
+| [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
 | [Decision map](.scratch/v0-1-derisk/map.md) | What is settled, what is still open |
 
 <br/>
