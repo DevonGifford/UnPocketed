@@ -1,0 +1,260 @@
+import { File } from "expo-file-system";
+
+import { findRecording } from "@/features/library";
+import {
+  resolveProvider,
+  TranscriptionAborted,
+  TranscriptionError,
+  type TranscriptionProvider,
+} from "@/providers/transcription";
+import type { Transcript, TranscriptionJob } from "@/types";
+
+import { transcriptionFailure, type TranscriptionFailure } from "./errors";
+import { allJobs, completeJob, jobFor, saveJob } from "./repository";
+import { newTranscriptId } from "./storage";
+
+/*
+ * Running a transcription (§21).
+ *
+ * The shape that matters: the job reference is written to disk **before**
+ * polling starts, not when the transcription completes. A promise alone would
+ * mean an app killed mid-transcription loses the only handle on work that is
+ * still running on the provider's servers and has already been paid for. §18
+ * requires it, and the provider decision was taken on it — Deepgram lost
+ * precisely because it keeps no job to re-attach to.
+ *
+ * Everything here is cancellable and nothing here is destructive: §21 says
+ * failure must not affect the original recording, and no path in this file
+ * touches stored audio.
+ */
+
+export type TranscribeOutcome =
+  | { status: "transcribed"; transcript: Transcript }
+  /** Polling stopped, job still live on the provider. Startup will re-attach. */
+  | { status: "detached" }
+  | { status: "failed"; failure: TranscriptionFailure };
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function toFailure(error: unknown): TranscriptionFailure {
+  if (error instanceof TranscriptionError) {
+    return transcriptionFailure(error.kind, error.retryable);
+  }
+  return transcriptionFailure("unknown", true);
+}
+
+/** Records a failure on the job so the recording reads `failed` (§21). */
+function recordFailure(
+  job: TranscriptionJob,
+  failure: TranscriptionFailure,
+): void {
+  try {
+    saveJob({
+      ...job,
+      state: "failed",
+      error: failure.detail,
+      updatedAt: nowIso(),
+    });
+  } catch {
+    // The failure cannot be recorded, so the job stays `transcribing` and the
+    // next launch re-attaches. That is the safe direction: it may recover.
+  }
+}
+
+/** Turns a provider result into the Transcript that gets stored. */
+function transcriptFrom(
+  job: TranscriptionJob,
+  result: { text: string; modelId: string },
+): Transcript {
+  const timestamp = nowIso();
+  return {
+    id: newTranscriptId(new Date()),
+    recordingId: job.recordingId,
+    providerId: job.providerId,
+    // What actually ran (§20), which a provider may have substituted.
+    modelId: result.modelId,
+    text: result.text,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  };
+}
+
+/** Polls an already-submitted job to completion and files the result. */
+async function finish(
+  provider: TranscriptionProvider,
+  job: TranscriptionJob,
+  jobRef: string,
+  signal?: AbortSignal,
+): Promise<TranscribeOutcome> {
+  if (!provider.resume) {
+    // A synchronous provider has nothing to re-attach to, so an interrupted
+    // transcription is simply gone. Say so rather than waiting on nothing.
+    const failure = transcriptionFailure("unknown", true);
+    recordFailure(job, failure);
+    return { status: "failed", failure };
+  }
+
+  try {
+    const result = await provider.resume(jobRef, {
+      modelId: job.modelId,
+      signal,
+    });
+    return { status: "transcribed", transcript: completeJob(transcriptFrom(job, result)) };
+  } catch (error) {
+    if (error instanceof TranscriptionAborted) return { status: "detached" };
+
+    const failure = toFailure(error);
+    recordFailure(job, failure);
+    return { status: "failed", failure };
+  }
+}
+
+/**
+ * Transcribes a Recording, from upload to stored Transcript (§21).
+ *
+ * Replaces any existing job for the recording, so a retry after a failure
+ * starts cleanly. Existing Transcripts are untouched — §22 makes
+ * retranscription additive.
+ *
+ * @param recordingId The Recording to transcribe.
+ * @param signal Stops polling. The provider's job keeps running and stays
+ * re-attachable, so this is not a cancellation.
+ * @returns What happened. `detached` is not a failure.
+ * @throws Never.
+ */
+export async function transcribeRecording(
+  recordingId: string,
+  signal?: AbortSignal,
+): Promise<TranscribeOutcome> {
+  const provider = await resolveProvider();
+  if (!provider) {
+    return { status: "failed", failure: transcriptionFailure("not-configured", false) };
+  }
+
+  const recording = findRecording(recordingId);
+  if (!recording) {
+    return { status: "failed", failure: transcriptionFailure("recording-missing", false) };
+  }
+
+  if (recording.interrupted) {
+    /*
+     * An Interrupted Recording's container has no index. The bytes are real
+     * audio and are preserved, but no decoder will open the file, so uploading
+     * it would spend the user's money to have a provider reject it.
+     */
+    return { status: "failed", failure: transcriptionFailure("interrupted", false) };
+  }
+
+  const audioFile = new File(recording.audioPath);
+  const timestamp = nowIso();
+
+  let job: TranscriptionJob;
+  try {
+    job = saveJob({
+      recordingId,
+      providerId: provider.id,
+      modelId: provider.defaultModelId,
+      jobRef: null,
+      state: "transcribing",
+      error: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+  } catch {
+    // Nothing has been uploaded yet, so refusing to start costs nothing and
+    // avoids a transcription whose reference could never be recorded.
+    return { status: "failed", failure: transcriptionFailure("not-recorded", true) };
+  }
+
+  try {
+    const result = await provider.transcribe(
+      {
+        uri: recording.audioPath,
+        mimeType: recording.mimeType,
+        sizeBytes: audioFile.size ?? 0,
+      },
+      {
+        modelId: job.modelId,
+        signal,
+        onJobRef: (jobRef) => {
+          /*
+           * Synchronously, the moment the provider issues it. This is the
+           * whole reason the interface has this callback rather than returning
+           * the reference at the end.
+           */
+          try {
+            job = saveJob({ ...job, jobRef, updatedAt: nowIso() });
+          } catch {
+            // Already-running work whose reference we cannot store. Polling
+            // continues, so this run can still succeed; only a process death
+            // during it would strand the job.
+          }
+        },
+      },
+    );
+
+    return { status: "transcribed", transcript: completeJob(transcriptFrom(job, result)) };
+  } catch (error) {
+    if (error instanceof TranscriptionAborted) return { status: "detached" };
+
+    const failure = toFailure(error);
+    recordFailure(job, failure);
+    return { status: "failed", failure };
+  }
+}
+
+/**
+ * Re-attaches to every job left in flight by a previous run (§18).
+ *
+ * Run once at startup. A job with a reference is polled to completion; one
+ * without never reached the provider, so there is nothing running and nothing
+ * paid for, and it is cleared rather than left spinning forever.
+ *
+ * @returns The Transcripts recovered, for the caller to surface.
+ * @throws Never.
+ */
+export async function resumeOutstandingJobs(
+  signal?: AbortSignal,
+): Promise<Transcript[]> {
+  let provider: TranscriptionProvider | null;
+  try {
+    provider = await resolveProvider();
+  } catch {
+    return [];
+  }
+  if (!provider) return [];
+
+  const outstanding = allOutstanding();
+  const recovered: Transcript[] = [];
+
+  for (const job of outstanding) {
+    if (!job.jobRef) {
+      // Submitted nothing: the app died between recording the job and the
+      // provider answering. Mark it failed so the user can retry knowingly.
+      recordFailure(job, transcriptionFailure("interrupted-before-upload", true));
+      continue;
+    }
+
+    const outcome = await finish(provider, job, job.jobRef, signal);
+    if (outcome.status === "transcribed") recovered.push(outcome.transcript);
+    if (outcome.status === "detached") break;
+  }
+
+  return recovered;
+}
+
+/** Jobs still marked in flight. A failed job waits for the user, not for us. */
+function allOutstanding(): TranscriptionJob[] {
+  try {
+    return allJobs().filter((job) => job.state === "transcribing");
+  } catch {
+    return [];
+  }
+}
+
+/** Whether a Recording currently has work outstanding, for guarding a re-tap. */
+export function hasOutstandingJob(recordingId: string): boolean {
+  return jobFor(recordingId)?.state === "transcribing";
+}
