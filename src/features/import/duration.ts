@@ -66,6 +66,9 @@ export async function probeDurationMs(
   }
 
   let decodeFailed = false;
+  // TODO(PR6 review): Include listener registration in the cleanup boundary.
+  // If addListener throws, this player leaks and importAudioFile rejects even
+  // though its caller expects every failure as an ImportOutcome.
   // The payload is partial on the error path, so only `error` can be trusted.
   const subscription = player.addListener(
     "playbackStatusUpdate",

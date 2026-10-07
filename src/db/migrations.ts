@@ -49,6 +49,46 @@ const migrations: Migration[] = [
       );
     },
   },
+  {
+    version: 3,
+    up: (db) => {
+      /*
+       * Transcripts and jobs index their sidecars, exactly as `recordings`
+       * indexes the recordings directory — see `features/transcription/storage.ts`
+       * for why they have sidecars at all.
+       *
+       * Deliberately no `REFERENCES recordings(id) ON DELETE CASCADE`.
+       * `reconcileLibrary` drops rows for audio it cannot currently see, and a
+       * cascade would turn a transient index repair into the silent destruction
+       * of paid-for transcripts. §25 removes transcripts with a recording only
+       * on the user's explicit, warned request, which is a different code path.
+       */
+      db.execSync(`
+        CREATE TABLE transcripts (
+          id           TEXT PRIMARY KEY NOT NULL,
+          recording_id TEXT NOT NULL,
+          provider_id  TEXT NOT NULL,
+          model_id     TEXT NOT NULL,
+          text         TEXT NOT NULL,
+          created_at   TEXT NOT NULL,
+          updated_at   TEXT NOT NULL
+        );
+        CREATE INDEX transcripts_recording
+          ON transcripts (recording_id, created_at DESC);
+
+        CREATE TABLE transcription_jobs (
+          recording_id TEXT PRIMARY KEY NOT NULL,
+          provider_id  TEXT NOT NULL,
+          model_id     TEXT NOT NULL,
+          job_ref      TEXT,
+          state        TEXT NOT NULL,
+          error        TEXT,
+          created_at   TEXT NOT NULL,
+          updated_at   TEXT NOT NULL
+        );
+      `);
+    },
+  },
 ];
 
 /** The version a fully migrated database reports. */

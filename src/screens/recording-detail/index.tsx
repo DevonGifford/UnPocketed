@@ -15,11 +15,16 @@ import {
   useRecording,
 } from "@/features/library";
 import { usePlayback } from "@/features/playback";
+import {
+  deleteTranscript,
+  deleteTranscriptsFor,
+  useRecordingTranscription,
+} from "@/features/transcription";
 import { PlaybackControls } from "@/components/playback-controls";
 import { InterruptedNotice } from "@/components/interrupted-notice";
 import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
 import { DeleteRecordingDialog } from "@/components/delete-recording-dialog";
-import type { TranscriptionState, Transcript } from "@/types";
+import { DeleteTranscriptDialog } from "@/components/delete-transcript-dialog";
 
 /** How far a stored duration may sit from the player's before it is rewritten. */
 const DURATION_DRIFT_MS = 1_000;
@@ -67,6 +72,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   );
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deletingTranscript, setDeletingTranscript] = useState(false);
 
   /*
    * A recovered recording's stored duration is estimated from its file size,
@@ -96,15 +102,19 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   }, [recording, storedDurationMs, playerDurationMs, refresh]);
 
   /*
-   * A Recording owns zero or more Transcripts (§10), but nothing produces one
-   * until PR7 — there is no provider and no API key yet. The interface below is
-   * built against the real shape and reads empty, rather than showing text no
-   * model generated (§3.7).
+   * A Recording owns zero or more Transcripts (§10). PR7 made these real: the
+   * state is derived from whether a job is outstanding and how many transcripts
+   * exist, so nothing here stores a fourth copy of §21's four states.
    */
-  const transcripts: Transcript[] = [];
-  // Widened deliberately: §21's other states are rendered below and PR7 will
-  // supply them, so narrowing to the literal would delete working interface.
-  const transcriptionState = "not-transcribed" as TranscriptionState;
+  const {
+    transcripts,
+    state: transcriptionState,
+    busy: transcribing,
+    failure: transcriptionFailure,
+    transcribe,
+    dismissFailure: dismissTranscriptionFailure,
+    refresh: refreshTranscription,
+  } = useRecordingTranscription(recording?.id ?? null);
 
   if (!recording) {
     return (
@@ -114,8 +124,10 @@ export function RecordingDetailScreen({ id }: { id: string }) {
     );
   }
 
+  // Falls back to the newest: with real transcripts, showing none until one is
+  // tapped would read as an empty transcript rather than as a chooser.
   const selected =
-    transcripts.find((t) => t.id === selectedTranscriptId) ?? null;
+    transcripts.find((t) => t.id === selectedTranscriptId) ?? transcripts[0] ?? null;
 
   return (
     <Screen>
@@ -155,19 +167,35 @@ export function RecordingDetailScreen({ id }: { id: string }) {
                 ? "Transcribing…"
                 : transcriptionState === "failed"
                   ? "The last attempt failed. Your recording is safe on this device."
-                  : "This recording has not been transcribed yet."}
+                  : recording.interrupted
+                    ? "An interrupted recording has no index, so no transcription service can read it."
+                    : "This recording has not been transcribed yet."}
             </Text>
-            <View className="flex-row">
-              <View className="rounded-md border border-border">
-                <Action
-                  label={
-                    transcriptionState === "failed"
-                      ? "Try again"
-                      : "Transcribe"
-                  }
-                />
+            {/*
+              §21: a failed transcription is retryable, but only where retrying
+              could work — `retryable` is false for a missing key or an
+              interrupted recording, where the button would just fail again.
+            */}
+            {recording.interrupted ? null : (
+              <View className="flex-row">
+                <View className="rounded-md border border-border">
+                  {/* TODO(PR7 review): A saved failed job has no retryable flag.
+                      Do not offer Try again for a bad key or an oversized file. */}
+                  <Action
+                    label={
+                      transcriptionState === "transcribing"
+                        ? "Transcribing…"
+                        : transcriptionState === "failed"
+                          ? "Try again"
+                          : "Transcribe"
+                    }
+                    onPress={
+                      transcriptionState === "transcribing" ? undefined : transcribe
+                    }
+                  />
+                </View>
               </View>
-            </View>
+            )}
           </View>
         ) : (
           <>
@@ -207,12 +235,36 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           </>
         )}
 
+        {/*
+          §32: a technical failure becomes an explanation, and every message
+          here says the recording is unaffected — §21 requires that to be true,
+          and nothing in this feature writes to stored audio.
+        */}
+        {transcriptionFailure ? (
+          <View className="mx-4 mt-4 gap-2 rounded-md border border-border bg-card p-4">
+            <Text variant="headline">{transcriptionFailure.title}</Text>
+            <Text variant="body">{transcriptionFailure.detail}</Text>
+            <View className="flex-row">
+              <Action label="Dismiss" onPress={dismissTranscriptionFailure} />
+              {transcriptionFailure.retryable && !transcribing ? (
+                <Action label="Try again" onPress={transcribe} />
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
         <View className="mt-8 border-t border-border">
           <Action label="Rename recording" onPress={() => setRenaming(true)} />
           <Action label="Retranscribe with another model" />
           <Action label="Export transcript" />
           <Action label="Share original audio" />
-          <Action label="Delete transcript" tone="destructive" />
+          {selected ? (
+            <Action
+              label="Delete transcript"
+              tone="destructive"
+              onPress={() => setDeletingTranscript(true)}
+            />
+          ) : null}
           <Action
             label="Delete recording and all associated data"
             tone="destructive"
@@ -232,6 +284,21 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         }}
       />
 
+      <DeleteTranscriptDialog
+        open={deletingTranscript}
+        onOpenChange={setDeletingTranscript}
+        modelId={selected?.modelId ?? ""}
+        onConfirm={() => {
+          setDeletingTranscript(false);
+          if (!selected) return;
+          deleteTranscript(selected.id);
+          // The selection points at a transcript that no longer exists; clear
+          // it so the fallback picks whichever is now newest.
+          setSelectedTranscriptId(null);
+          refreshTranscription();
+        }}
+      />
+
       <DeleteRecordingDialog
         open={deleting}
         onOpenChange={setDeleting}
@@ -242,6 +309,15 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           // The player is holding the file open; let it go before the delete
           // rather than relying on unmount happening first.
           if (playback.isPlaying) playback.toggle();
+          /*
+           * Transcripts go first and explicitly. The schema has no
+           * ON DELETE CASCADE on purpose — a cascade would let an index repair
+           * destroy them — so this is the one path that removes transcripts the
+           * user did not name individually, and §25 has just warned them.
+           * TODO(PR7 review): Handle a failed audio delete after transcripts
+           * are gone, and tell the user what was actually removed.
+           */
+          deleteTranscriptsFor(recording.id);
           deleteRecording(recording.id);
           /*
            * The screen is showing a recording that no longer exists. Back is a

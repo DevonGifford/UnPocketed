@@ -39,3 +39,30 @@ export type TranscriptionState =
   | "transcribing"
   | "transcribed"
   | "failed";
+
+/**
+ * One transcription a Recording has asked for, while it is still in flight or
+ * after it failed. A job that completes becomes a {@link Transcript} and its
+ * job record is dropped — so a job is the *absence* of a result, never a
+ * second copy of one.
+ *
+ * At most one per Recording: §21's states describe the Recording, and a second
+ * concurrent transcription of the same audio has no state to occupy.
+ */
+export interface TranscriptionJob {
+  recordingId: string;
+  providerId: string;
+  modelId: string;
+  /**
+   * The provider's handle on the work, stored the moment it is issued so a
+   * transcription survives the app's death (§18). Null only in the window
+   * between asking and being given one.
+   */
+  jobRef: string | null;
+  /** `failed` carries {@link error}; `transcribing` covers queued and running. */
+  state: "transcribing" | "failed";
+  /** User-facing explanation when `state` is `failed`. */
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

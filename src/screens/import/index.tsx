@@ -9,6 +9,8 @@ import { useImport } from "@/features/import";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 
 /** The formats §17 commits to, in the order a user would recognise them. */
+// TODO(PR6 review): Derive this and the unsupported-format error copy from the
+// accepted formats in formats.ts so adding a format cannot leave the UI stale.
 const FORMATS = "M4A · MP3 · WAV · MP4 · WebM · AAC · 3GP · OGG · Opus · FLAC";
 
 /**

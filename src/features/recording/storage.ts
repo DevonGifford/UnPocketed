@@ -33,9 +33,11 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 /**
- * Containers the recorder itself can write. Anything else in the recordings
- * directory arrived through Import, which is the only way to tell the two
- * apart once a sidecar is gone.
+ * Containers the recorder itself can write. An extension outside this set
+ * identifies an import, but an extension inside it does not establish source:
+ * Import accepts these containers too.
+ * TODO(PR6 review): Preserve source independently of the sidecar before using
+ * this fallback to label a sidecar-less M4A, MP4, 3GP or AAC as recorded.
  */
 const RECORDED_EXTENSIONS = ["m4a", "mp4", "3gp", "aac"];
 

@@ -4,11 +4,13 @@ import { Screen } from "@/components/screen";
 import { Text } from "@/components/ui/text";
 import { RecordingRow } from "@/components/recording-row";
 import { useLibrary } from "@/features/library";
+import { useTranscriptionSummaries } from "@/features/transcription";
 
 /** The recordings list (§15): every Recording, newest first, regardless of source. */
 export function RecordingsScreen() {
   const router = useRouter();
   const { recordings, refresh } = useLibrary();
+  const { summaries, refresh: refreshSummaries } = useTranscriptionSummaries();
 
   return (
     <Screen>
@@ -18,6 +20,10 @@ export function RecordingsScreen() {
         renderItem={({ item }) => (
           <RecordingRow
             recording={item}
+            // Absent from the map means no transcripts and no job, which the
+            // row's own defaults already describe.
+            transcriptionState={summaries.get(item.id)?.state}
+            transcriptCount={summaries.get(item.id)?.transcriptCount}
             onPress={() => router.push(`/recordings/${item.id}`)}
           />
         )}
@@ -26,7 +32,10 @@ export function RecordingsScreen() {
           // way to recover audio the index has never seen (§3.2).
           <RefreshControl
             refreshing={false}
-            onRefresh={() => refresh({ rescan: true })}
+            onRefresh={() => {
+              refresh({ rescan: true });
+              refreshSummaries();
+            }}
           />
         }
         ListEmptyComponent={

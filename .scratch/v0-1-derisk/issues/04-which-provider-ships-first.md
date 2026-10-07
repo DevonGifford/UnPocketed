@@ -19,6 +19,8 @@ The full reasoning, accepted costs (AssemblyAI retains audio ≤48h and transcri
 no zero-retention option on the async endpoint) and spec consequences are in the research file and
 summarised in the map's *Decisions so far*.
 
+**API shape corrected at PR7 (2026-10-08).** Building against AssemblyAI's live docs turned up three details this entry did not carry, each of which fails at runtime as an opaque 4xx. (1) The pre-recorded endpoint takes **`speech_models`** — plural, an array — and the singular `speech_model` it replaced now survives only on the streaming API. (2) A newer flagship **`universal-3-5-pro`** exists alongside `universal-2`, and omitting the field sends `["universal-3-5-pro", "universal-2"]`, which routes by language and bills at whichever model ran. PR7 therefore **pins `["universal-2"]` explicitly**, so v0.1 costs what this ticket costed it; PR8 hands the choice to the user. (3) The completed transcript reports **`speech_model_used`**, which is what §20's "which model generated this?" must be answered from, since a fallback can substitute one. The auth header is confirmed to be the **bare key**, not `Bearer`-prefixed. None of this disturbs the provider choice — AssemblyAI, `universal-2`, $0.15/hr, and the queued/processing/completed/error lifecycle all stand — so §19's mockup is still correct as written.
+
 Everything below is the question **as originally posed**, kept for the record.
 
 ## Question

@@ -4,8 +4,8 @@ import { Screen } from "@/components/screen";
 import { AppHeader } from "@/components/app-header";
 import { HudFrame } from "@/components/hud-frame";
 import { Text } from "@/components/ui/text";
-import { mockRecordings } from "@/mocks/recordings";
 import { useLibrary } from "@/features/library";
+import { useTranscripts } from "@/features/transcription";
 import {
   formatApproximateDuration,
   formatDuration,
@@ -92,14 +92,8 @@ function Tile({
 export function HomeScreen() {
   const router = useRouter();
   const { recordings } = useLibrary();
+  const { transcripts } = useTranscripts();
   const recent = recordings.slice(0, 2);
-  // Transcripts are PR7, so this still counts fixtures — deliberately, so the
-  // tile agrees with the Transcripts screen, which is also still mocked. Both
-  // stop reading mocks together.
-  const transcriptCount = mockRecordings.reduce(
-    (total, recording) => total + recording.transcripts.length,
-    0,
-  );
 
   return (
     <Screen>
@@ -134,7 +128,11 @@ export function HomeScreen() {
           <Tile
             glyph="▦"
             title="Transcripts"
-            detail={`${transcriptCount} transcripts`}
+            detail={
+              transcripts.length === 1
+                ? "1 transcript"
+                : `${transcripts.length} transcripts`
+            }
             onPress={() => router.push("/transcripts")}
           />
         </View>
