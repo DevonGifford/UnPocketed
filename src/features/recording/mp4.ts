@@ -60,6 +60,8 @@ export function containsMoov(reader: ByteReader): boolean {
     if (header.length < HEADER_BYTES) return false;
 
     const declaredSize = readUint32(header, 0);
+    // TODO(v0.0.4 review): Validate the moov box size and bounds before
+    // accepting it; a process killed while writing moov can leave only a header.
     if (readBoxType(header, 4) === "moov") return true;
 
     let boxSize = declaredSize;

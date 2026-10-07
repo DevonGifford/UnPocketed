@@ -73,8 +73,8 @@ function recoveredSidecar(file: File): Sidecar {
     durationMs: 0,
     createdAt: recordedAt,
     updatedAt: recordedAt,
-    // Nothing about a sidecar-less file says capture was interrupted; a lost
-    // sidecar and a lost container index are different failures.
+    // TODO(v0.0.4 review): A sidecar write can fail after an interrupted file
+    // has moved here. Probe the MP4 index before assuming this file is playable.
     interrupted: false,
   };
 }
