@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 
+import { reconcileTranscripts } from "./repository";
 import { resumeOutstandingJobs } from "./transcribe";
 
 /*
@@ -31,6 +32,20 @@ export function useResumeTranscriptions(): void {
     started.current = true;
 
     const controller = new AbortController();
+
+    /*
+     * Reconcile first. The job index can legitimately be empty — a fresh
+     * install, or a database that was dropped and rebuilt — and an empty
+     * result is not an error, so the repository's disk fallback never fires.
+     * Without this, a rebuild would silently abandon every job on disk, which
+     * is exactly the paid, in-flight work the sidecars exist to protect.
+     */
+    try {
+      reconcileTranscripts();
+    } catch {
+      // Reconcile already swallows its own failures; this is belt and braces.
+    }
+
     // Failures are already recorded on the jobs themselves, so nothing here
     // needs to surface: the next screen that reads a job shows its state.
     void resumeOutstandingJobs(controller.signal).catch(() => []);

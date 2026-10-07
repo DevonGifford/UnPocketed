@@ -147,6 +147,16 @@ export async function transcribeRecording(
     return { status: "failed", failure: transcriptionFailure("interrupted", false) };
   }
 
+  /*
+   * Refuse a second transcription of the same recording. The UI already
+   * disables the control while one is running, but this catches state drift:
+   * saving a new job overwrites the old one's reference, orphaning work the
+   * user has already paid for and that nothing could then re-attach to.
+   */
+  if (hasOutstandingJob(recordingId)) {
+    return { status: "detached" };
+  }
+
   const audioFile = new File(recording.audioPath);
   const timestamp = nowIso();
 
