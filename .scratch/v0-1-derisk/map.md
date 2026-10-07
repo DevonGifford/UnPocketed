@@ -19,7 +19,7 @@ Reaching the destination does **not** mean v0.1 is built. §39's "Definition of 
 
 - **Repo scaffolding is done** (2026-10-04, at Devon's request): `README.md`, `LICENSE` (MIT), `AGENTS.md`, `CONTEXT.md`, `.gitignore`, `.editorconfig`. A deliberate, scoped exception to *plan, don't do* below — it stopped short of anything SDK-dependent so that [Which Expo SDK ships v0.1?](issues/00-which-expo-sdk-ships-v0-1.md) stays open rather than being settled by accident. No `package.json`, no `app/`, nothing installed.
 - **PR1 is built** (2026-10-04): Expo SDK 57 scaffold, Expo Router, NativeWind with semantic tokens, four screens on mock data, jest and eslint wired. Verified by typecheck, 7 passing tests, lint, a clean web bundle, and a live render of every screen. Execution now runs ahead of the map by explicit request; the map still owns the open *decisions*.
-- **Nothing is ever staged or committed.** Devon owns the git index and history. Write files and stop.
+- **Commits are the agent's; pull requests are Devon's** (changed 2026-10-07, mid-PR4 — this previously read "nothing is ever staged or committed"). Commit each slice of work as it completes, short conventional subjects. Never open a pull request.
 - **Plan, don't do.** This map resolves *decisions*. The build roadmap already exists in §38 — do not duplicate PR1–PR10 as tickets, and do not start building. The pull to write app code is the signal the map is done.
 - The spec is the authority on **product shape**. This map does not relitigate settled product decisions; it resolves what the spec leaves open or contradicts itself on.
 - A ticket earns its place by being able to **invalidate something the spec already assumes**. If resolving it changes nothing, it is not a ticket.
