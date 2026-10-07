@@ -21,6 +21,15 @@ const current: Partial<AudioMode> = {
   // under another app's music.
   interruptionMode: "doNotMix",
   playsInSilentMode: true,
+  /*
+   * §13: recording must continue when the app backgrounds and when the screen
+   * locks. `enableBackgroundRecording` in `app.json` is only the manifest half.
+   * This is the runtime half, it defaults to **false**, and while it is false
+   * `AudioModule` pauses every active recorder the moment the activity
+   * backgrounds — so §13 is broken without this line and a foreground-only
+   * test still passes.
+   */
+  allowsBackgroundRecording: true,
 };
 
 /**
@@ -31,5 +40,15 @@ const current: Partial<AudioMode> = {
  */
 export async function updateAudioMode(patch: Partial<AudioMode>): Promise<void> {
   Object.assign(current, patch);
+  await setAudioModeAsync(current);
+}
+
+/**
+ * Applies the app's audio mode. Called once at startup, before any recorder
+ * exists: `AudioRecorder`'s constructor reads `allowsBackgroundRecording` to
+ * decide whether to use a foreground service, so setting it first means the
+ * first recorder is built correctly rather than corrected afterwards.
+ */
+export async function applyAudioMode(): Promise<void> {
   await setAudioModeAsync(current);
 }

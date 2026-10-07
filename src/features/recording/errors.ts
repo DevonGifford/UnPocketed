@@ -13,6 +13,7 @@ export type RecordingFailureReason =
   | "prepare-timed-out"
   | "prepare-failed"
   | "start-failed"
+  | "service-unavailable"
   | "finalise-failed"
   | "save-failed";
 
@@ -61,6 +62,15 @@ const FAILURES: Record<RecordingFailureReason, Omit<RecordingFailure, "reason">>
   "start-failed": {
     title: "Recording did not begin",
     detail: "The recorder was ready but did not start. Nothing was recorded. Try again.",
+    audioIntact: false,
+  },
+  "service-unavailable": {
+    // AudioRecorder.kt refuses to prepare when background recording is on but
+    // the foreground service never bound. Transient, so worth retrying — unlike
+    // a generic prepare failure, which usually is not.
+    title: "Recording could not start this time",
+    detail:
+      "Android did not hand Unpocketed the background recording service. Nothing was recorded. Try again — this usually clears on a second attempt.",
     audioIntact: false,
   },
   "finalise-failed": {

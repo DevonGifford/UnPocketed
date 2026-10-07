@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { RecordingPresets, useAudioRecorder } from "expo-audio";
+import {
+  RecordingPresets,
+  useAudioRecorder,
+  type RecordingStatus,
+} from "expo-audio";
 
+import { applyAudioMode } from "@/lib/audio-mode";
 import { withTimeout, TimeoutError } from "@/lib/with-timeout";
 import type { Recording } from "@/types";
 
-import { recordingFailure, type RecordingFailure } from "./errors";
+import {
+  recordingFailure,
+  type RecordingFailure,
+  type RecordingFailureReason,
+} from "./errors";
 import { ensureRecordingPermissions } from "./permissions";
 import { persistRecording } from "./storage";
 import { indexRecording } from "@/features/library";
@@ -19,6 +28,23 @@ import { indexRecording } from "@/features/library";
  * it depends on which provider ships first, since a 25 MB request cap and a
  * 2 GB one imply different answers.
  */
+
+/**
+ * Why preparing failed. The service-binding case is separated out because it is
+ * worth retrying, which a generic prepare failure usually is not.
+ */
+function prepareFailureReason(error: unknown): RecordingFailureReason {
+  if (error instanceof TimeoutError) return "prepare-timed-out";
+
+  const message = error instanceof Error ? error.message : String(error);
+  // AudioRecorder.kt throws this when background recording is enabled but the
+  // foreground service connection never bound.
+  if (message.includes("service connection is not bound")) {
+    return "service-unavailable";
+  }
+
+  return "prepare-failed";
+}
 
 /** How long to wait for `prepareToRecordAsync` before giving up (expo/expo#50706). */
 const PREPARE_TIMEOUT_MS = 10_000;
@@ -47,6 +73,15 @@ export interface RecordingSession {
  */
 export function useRecordingSessionState(): RecordingSession {
   /*
+   * Indirection so the subscription can reach the real listener.
+   * `useAudioRecorder` subscribes once per recorder and captures whatever
+   * callback that render passed, while the real listener is declared further
+   * down because it needs this component's state setters. The arrow handed to
+   * the hook reads this ref, so the captured arrow never goes stale.
+   */
+  const statusListenerRef = useRef<(status: RecordingStatus) => void>(() => {});
+
+  /*
    * `directory: "document"` overrides the preset's default of `cache`.
    * `AudioRecorder.kt` resolves `options.directory ?: RecordingDirectory.CACHE`,
    * so an in-progress recording would otherwise grow in a directory Android may
@@ -56,10 +91,14 @@ export function useRecordingSessionState(): RecordingSession {
    * `Paths.document` resolves to, so a partial lands at `Paths.document/Audio/`
    * where JS can still find it.
    */
-  const recorder = useAudioRecorder({
-    ...RecordingPresets.HIGH_QUALITY,
-    directory: "document",
-  });
+  const recorder = useAudioRecorder(
+    {
+      ...RecordingPresets.HIGH_QUALITY,
+      directory: "document",
+    },
+    // Declared below; stable, so the one captured at subscribe time stays correct.
+    (status) => statusListenerRef.current(status),
+  );
 
   const [status, setStatus] = useState<RecordingSessionStatus>("idle");
   const [tickedElapsedMs, setTickedElapsedMs] = useState(0);
@@ -71,12 +110,32 @@ export function useRecordingSessionState(): RecordingSession {
   // both await, so a second press must not start a parallel transition.
   const busy = useRef(false);
   const mounted = useRef(true);
+  /*
+   * Set when *we* ask the recorder to stop, so the status listener can tell our
+   * own stop from one we never initiated. Cleared on the next start rather than
+   * after `stop()` resolves: the native event is dispatched to the main queue
+   * during `stopRecording()`, so clearing it on the way out of `stop()` would
+   * race the event it exists to classify.
+   */
+  const stoppingFromJs = useRef(false);
+  /** Mirrors the polled elapsed time for the status listener, which cannot close over state. */
+  const tickedElapsedRef = useRef(0);
 
   useEffect(() => {
     mounted.current = true;
     return () => {
       mounted.current = false;
     };
+  }, []);
+
+  /*
+   * §13's runtime half, applied once. This provider mounts above the navigator
+   * and before any screen, so the flag is set before the first recorder is
+   * constructed — which is when `AudioRecorder` reads it to decide whether to
+   * run a foreground service.
+   */
+  useEffect(() => {
+    void applyAudioMode();
   }, []);
 
   /*
@@ -93,16 +152,86 @@ export function useRecordingSessionState(): RecordingSession {
     if (status !== "recording") return;
 
     const interval = setInterval(() => {
-      setTickedElapsedMs(recorder.getStatus().durationMillis);
+      const { durationMillis } = recorder.getStatus();
+      tickedElapsedRef.current = durationMillis;
+      setTickedElapsedMs(durationMillis);
     }, STATE_POLL_MS);
 
     return () => clearInterval(interval);
   }, [status, recorder]);
 
+  /**
+   * Moves finished audio into the library and indexes it. Shared by our own
+   * stop and by a stop we never initiated, so both file identically.
+   */
+  const fileRecording = useCallback(async (sourceUri: string, durationMs: number) => {
+    setFinalElapsedMs(durationMs);
+    setStatus("saving");
+
+    try {
+      const saved = await persistRecording({ sourceUri, durationMs });
+      // Index straight away so the library shows it without a rescan. The
+      // sidecar is already written, so this failing costs the row, not the
+      // recording.
+      indexRecording(saved);
+      if (mounted.current) {
+        setLastSaved(saved);
+        setFinalElapsedMs(0);
+        setStatus("idle");
+      }
+    } catch {
+      // The audio exists but is not in the library. §32 requires saying so
+      // rather than returning to idle as though nothing had been recorded.
+      if (mounted.current) {
+        setFailure(recordingFailure("save-failed"));
+        setStatus("idle");
+      }
+    }
+  }, []);
+
+  /*
+   * The recorder's status listener.
+   *
+   * Must be stable and must read through refs. `useAudioRecorder` subscribes
+   * inside an effect keyed on `recorder.id`, so the callback it captures is the
+   * one from the render that created the recorder — a closure over state would
+   * be stale for the rest of the recorder's life.
+   *
+   * Its job is §14's reconciliation: the foreground-service notification's Stop
+   * action reaches native `stopRecording()` directly, so JS cannot assume it
+   * witnessed every stop. Without this the session would sit at "recording"
+   * forever and the next press would call `stop()` on an already-reset recorder.
+   */
+  const onRecordingStatus = useCallback(
+    (status: RecordingStatus) => {
+      if (!status.isFinished) return;
+      // Our own stop files the recording itself.
+      if (stoppingFromJs.current) return;
+
+      if (status.hasError || !status.url) {
+        if (mounted.current) {
+          setFailure(recordingFailure("finalise-failed"));
+          setStatus("idle");
+        }
+        return;
+      }
+
+      /*
+       * The recorder's counters are reset before this event is emitted, so
+       * `getStatus()` would report zero. The last polled value is the best
+       * duration available and is within one poll interval of the truth.
+       */
+      void fileRecording(status.url, tickedElapsedRef.current);
+    },
+    [fileRecording],
+  );
+
   const start = useCallback(async () => {
     setFailure(null);
     setFinalElapsedMs(0);
     setTickedElapsedMs(0);
+    tickedElapsedRef.current = 0;
+    stoppingFromJs.current = false;
     setStatus("preparing");
 
     const permissionFailure = await ensureRecordingPermissions();
@@ -122,11 +251,7 @@ export function useRecordingSessionState(): RecordingSession {
       );
     } catch (error) {
       if (mounted.current) {
-        setFailure(
-          recordingFailure(
-            error instanceof TimeoutError ? "prepare-timed-out" : "prepare-failed",
-          ),
-        );
+        setFailure(recordingFailure(prepareFailureReason(error)));
         setStatus("idle");
       }
       return;
@@ -152,6 +277,7 @@ export function useRecordingSessionState(): RecordingSession {
     // `uri` is assigned at prepare time; read it now in case stopping clears it.
     const uriBeforeStop = recorder.uri;
 
+    stoppingFromJs.current = true;
     setFinalElapsedMs(durationMs);
     setStatus("saving");
 
@@ -175,26 +301,8 @@ export function useRecordingSessionState(): RecordingSession {
       return;
     }
 
-    try {
-      const saved = await persistRecording({ sourceUri, durationMs });
-      // Index straight away so the library shows it without a rescan. The
-      // sidecar is already written, so this failing costs the row, not the
-      // recording.
-      indexRecording(saved);
-      if (mounted.current) {
-        setLastSaved(saved);
-        setFinalElapsedMs(0);
-        setStatus("idle");
-      }
-    } catch {
-      // The audio exists but is not in the library. §32 requires saying so
-      // rather than returning to idle as though nothing had been recorded.
-      if (mounted.current) {
-        setFailure(recordingFailure("save-failed"));
-        setStatus("idle");
-      }
-    }
-  }, [recorder]);
+    await fileRecording(sourceUri, durationMs);
+  }, [recorder, fileRecording]);
 
   const toggle = useCallback(() => {
     if (busy.current) return;
@@ -205,6 +313,10 @@ export function useRecordingSessionState(): RecordingSession {
       busy.current = false;
     });
   }, [status, start, stop]);
+
+  useEffect(() => {
+    statusListenerRef.current = onRecordingStatus;
+  }, [onRecordingStatus]);
 
   const dismissFailure = useCallback(() => setFailure(null), []);
 
