@@ -2,6 +2,8 @@ import { Directory, File, Paths } from "expo-file-system";
 
 import type { Recording } from "@/types";
 
+import { normaliseSidecar, type Sidecar } from "./sidecar";
+
 /*
  * Keep original audio in Paths.document: Android may evict Paths.cache (§3.2).
  *
@@ -19,18 +21,6 @@ const MIME_TYPES: Record<string, string> = {
   aac: "audio/aac",
   wav: "audio/wav",
 };
-
-interface Sidecar {
-  id: string;
-  title: string;
-  source: Recording["source"];
-  fileName: string;
-  mimeType: string;
-  durationMs: number;
-  createdAt: string;
-  updatedAt: string;
-  interrupted: boolean;
-}
 
 function recordingsDirectory(): Directory {
   const directory = new Directory(Paths.document, DIRECTORY_NAME);
@@ -171,7 +161,9 @@ export function listPersistedRecordings(): Recording[] {
 
     if (sidecarFile.exists) {
       try {
-        const sidecar = JSON.parse(sidecarFile.textSync()) as Sidecar;
+        const sidecar = normaliseSidecar(
+          JSON.parse(sidecarFile.textSync()) as Sidecar,
+        );
         return { ...sidecar, audioPath: file.uri };
       } catch {
         // Fall through to the filename-derived form below.
@@ -209,7 +201,7 @@ export function updateRecordingMetadata(
   let existing: Sidecar | null = null;
   if (sidecarFile.exists) {
     try {
-      existing = JSON.parse(sidecarFile.textSync()) as Sidecar;
+      existing = normaliseSidecar(JSON.parse(sidecarFile.textSync()) as Sidecar);
     } catch {
       // An unreadable sidecar is replaced from the file's own metadata.
     }
