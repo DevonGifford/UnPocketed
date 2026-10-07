@@ -27,7 +27,13 @@ Reaching the destination does **not** mean v0.1 is built. §39's "Definition of 
 
 ## Take order
 
-[How is audio written during capture?](issues/05-how-is-audio-written-during-capture.md) next — ticket 04 closing unblocked it, and it is the last thing standing between here and PR5's resilience half, which cannot be designed without it. [What is an edited transcript?](issues/03-what-is-an-edited-transcript.md) is unblocked and cheap, takeable any time; it is PR9 work, so it gates nothing. PR1–PR4 are built.
+**Every ticket is resolved except one.** [What is an edited transcript?](issues/03-what-is-an-edited-transcript.md) is the last one open — unblocked, cheap, and PR9 work, so it gates nothing before then. Take it any time; it wants taking before PR9 starts, not after.
+
+**PR1–PR7 are built and merged** (PR7 on 2026-10-08). PR8 is next: provider settings, model selection, a second provider and switching between them. Ticket 04 already names the second provider — **Deepgram plus `custom-openai.ts`** — and the correction appended to it describes AssemblyAI's live API shape, which PR7 found differed from what the ticket originally recorded.
+
+Two things PR8 inherits rather than starts from scratch. `expo-secure-store` and the API-key field already exist, pulled forward into PR7 because it could not transcribe without them; what PR8 adds is the *choosing*. And `providers/transcription/index.ts` is already a registry keyed by provider id, with `describeProvider` and `resolveProvider` as its surface — a second provider should need no change outside that folder, which is the test §3.3's abstraction has to pass.
+
+**Caveat worth carrying into PR8:** no transcription has ever actually run. No AssemblyAI key has been configured, so PR7's whole network half — upload, submit, poll, every failure path — is unexercised. PR8's exit condition ("the same recording transcribed by two different models/providers") cannot be met without first proving one of them works.
 
 ## Decisions so far
 
