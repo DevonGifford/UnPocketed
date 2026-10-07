@@ -22,8 +22,12 @@ import { createAudioPlayer, type AudioStatus } from "expo-audio";
  * the honest source. The listener is kept for the one thing polling cannot
  * see: a decode failure.
  *
- * Nothing is played, so no audio focus is requested and a recording in progress
- * is unaffected — Import is reachable while recording.
+ * Import is reachable while a recording is running, so this is careful not to
+ * disturb one. Nothing is played, so no audio focus is requested; and crucially
+ * nothing here goes near `setAudioModeAsync`, which overwrites every field it
+ * is not given and would switch background recording off on every live recorder
+ * (see AGENTS.md, and `lib/audio-mode.ts`). `usePlayback` needs the mode set
+ * because it actually plays; a probe does not.
  */
 
 /** Long enough for ExoPlayer to open a large local file, short enough to not hang Import. */
