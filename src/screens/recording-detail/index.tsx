@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
@@ -62,14 +62,23 @@ export function RecordingDetailScreen({ id }: { id: string }) {
    * A recording whose sidecar was lost has no stored duration, and decoding the
    * file is the only way to learn one. The player has just done that, so write
    * it down rather than re-deriving it on every visit.
+   *
+   * Attempted once per recording, tracked by ref rather than by the guard
+   * below: `backfillDuration` swallows an index-write failure by design, so the
+   * sidecar can be updated while the row still reads 0. `refresh` returns a new
+   * object every call, which re-runs this effect, and the guard would pass
+   * again — writing the sidecar on every render, forever.
    */
+  const backfilledId = useRef<string | null>(null);
   const storedDurationMs = recording?.durationMs ?? 0;
   const playerDurationMs = playback.durationMs;
   useEffect(() => {
-    if (recording && storedDurationMs === 0 && playerDurationMs > 0) {
-      backfillDuration(recording.id, playerDurationMs);
-      refresh();
-    }
+    if (!recording || storedDurationMs > 0 || playerDurationMs <= 0) return;
+    if (backfilledId.current === recording.id) return;
+
+    backfilledId.current = recording.id;
+    backfillDuration(recording.id, playerDurationMs);
+    refresh();
   }, [recording, storedDurationMs, playerDurationMs, refresh]);
 
   /*
@@ -206,9 +215,17 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         transcriptCount={transcripts.length}
         onConfirm={() => {
           setDeleting(false);
+          // The player is holding the file open; let it go before the delete
+          // rather than relying on unmount happening first.
+          if (playback.isPlaying) playback.toggle();
           deleteRecording(recording.id);
-          // The screen is showing a recording that no longer exists.
-          router.back();
+          /*
+           * The screen is showing a recording that no longer exists. Back is a
+           * no-op when this screen was the entry point — a deep link, or a
+           * restored route on a cold start — so fall back to the library.
+           */
+          if (router.canGoBack()) router.back();
+          else router.replace("/recordings");
         }}
       />
     </Screen>
