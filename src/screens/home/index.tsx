@@ -143,7 +143,9 @@ export function HomeScreen() {
           <Tile
             glyph="↥"
             title="Import"
-            detail="From device or files"
+            // Files only: syncing a Pocket device is its own destination, and
+            // its own PR. The tile should not promise both.
+            detail="From your files"
             onPress={() => router.push("/import")}
           />
           <Tile

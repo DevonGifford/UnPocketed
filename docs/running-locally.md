@@ -69,6 +69,9 @@ Serves the app at `http://localhost:8081` through `react-native-web`. No device,
 | API keys in the device keystore | absent |
 | Local database | absent |
 | File export and the share sheet | absent |
+| Importing a file (`expo-document-picker`) | chooser opens, copy fails |
+
+Import is the one row with a trap in it: `expo-document-picker` ships a web implementation, so the file chooser really does open and a file really is picked. Everything after that — copying into managed storage, writing the sidecar, indexing the row — needs `expo-file-system` and `expo-sqlite`, so the import fails after the part you can see succeeding. A browser check will tell you the button is wired up and nothing more.
 
 So the useful span of browser testing shrinks as the roadmap advances. Through PR2 it covers nearly everything, because nearly everything is still static. From **PR3**, when real recording lands, screens will render and every control that touches audio will fail.
 
