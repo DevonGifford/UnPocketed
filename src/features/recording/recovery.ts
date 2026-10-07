@@ -98,9 +98,13 @@ export async function adoptOrphan(
   try {
     return await persistRecording({
       sourceUri: file.uri,
-      // A playable file keeps its real duration, which the player reports and
-      // PR4's backfill writes down on first open.
-      durationMs: playable ? 0 : estimateDurationMs(file.size, bitsPerSecond),
+      /*
+       * Estimated either way. A playable orphan has a real duration, but only
+       * the player can read it, and storing 0 until someone opens the recording
+       * makes the library claim it is empty — which reads as a bug rather than
+       * as "not measured yet". The detail screen corrects it on first open.
+       */
+      durationMs: estimateDurationMs(file.size, bitsPerSecond),
       // When capture began, not when it was noticed.
       recordedAt: new Date(file.creationTime ?? file.lastModified ?? Date.now()),
       interrupted: !playable,

@@ -21,6 +21,9 @@ import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
 import { DeleteRecordingDialog } from "@/components/delete-recording-dialog";
 import type { TranscriptionState, Transcript } from "@/types";
 
+/** How far a stored duration may sit from the player's before it is rewritten. */
+const DURATION_DRIFT_MS = 1_000;
+
 /** A tappable text action. Destructive actions are never the easiest tap (§25). */
 function Action({
   label,
@@ -66,9 +69,9 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const [deleting, setDeleting] = useState(false);
 
   /*
-   * A recording whose sidecar was lost has no stored duration, and decoding the
-   * file is the only way to learn one. The player has just done that, so write
-   * it down rather than re-deriving it on every visit.
+   * A recovered recording's stored duration is estimated from its file size,
+   * because only the player can measure one. It has just done that, so write
+   * the real value down rather than re-deriving it on every visit.
    *
    * Attempted once per recording, tracked by ref rather than by the guard
    * below: `backfillDuration` swallows an index-write failure by design, so the
@@ -81,7 +84,10 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const playerDurationMs = playback.durationMs;
   useEffect(() => {
     if (!recording || recording.interrupted) return;
-    if (storedDurationMs > 0 || playerDurationMs <= 0) return;
+    if (playerDurationMs <= 0) return;
+    // A measured duration agrees with itself, so only an estimate differs by
+    // enough to be worth a write.
+    if (Math.abs(playerDurationMs - storedDurationMs) < DURATION_DRIFT_MS) return;
     if (backfilledId.current === recording.id) return;
 
     backfilledId.current = recording.id;
