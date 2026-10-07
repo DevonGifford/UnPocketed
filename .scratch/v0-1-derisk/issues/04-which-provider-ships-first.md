@@ -1,8 +1,25 @@
 # Which provider ships first?
 
 Type: grilling
-Status: open
+Status: resolved
 Map: [De-risk v0.1](../map.md)
+Research: [04-provider-selection.md](../research/04-provider-selection.md)
+
+## Resolution
+
+**AssemblyAI at PR7, Deepgram plus `custom-openai.ts` at PR8, chunking out of v0.1 entirely.**
+Adopted 2026-10-07. The research **contradicted the pre-argued position below**: the candidate
+pool in "Inputs now settled" was drawn too small. AssemblyAI clears two hours at 2.2 GB by direct
+upload with URLs private to its own API, so §3.1 permits it — making two chunk-free providers
+rather than one, and freeing this choice from the upload cap. Deepgram then lost first place on a
+different axis: it does not store transcripts, and with §3.1 ruling out callbacks a lost HTTP
+response loses the transcript outright, so §21's `Transcribing` cannot survive app death.
+
+The full reasoning, accepted costs (AssemblyAI retains audio ≤48h and transcripts ≤30 days, with
+no zero-retention option on the async endpoint) and spec consequences are in the research file and
+summarised in the map's *Decisions so far*.
+
+Everything below is the question **as originally posed**, kept for the record.
 
 ## Question
 

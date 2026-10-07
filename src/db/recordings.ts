@@ -17,10 +17,11 @@ interface RecordingRow {
   duration_ms: number;
   created_at: string;
   updated_at: string;
+  interrupted: number;
 }
 
 const COLUMNS =
-  "id, title, source, audio_file_name, mime_type, duration_ms, created_at, updated_at";
+  "id, title, source, audio_file_name, mime_type, duration_ms, created_at, updated_at, interrupted";
 
 function toRecording(row: RecordingRow): Recording {
   return {
@@ -34,6 +35,8 @@ function toRecording(row: RecordingRow): Recording {
     durationMs: row.duration_ms,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    // SQLite has no boolean type; the column is an INTEGER flag.
+    interrupted: row.interrupted !== 0,
   };
 }
 
@@ -59,7 +62,7 @@ export function getRecording(id: string): Recording | null {
 export function upsertRecording(recording: Recording): void {
   getDatabase().runSync(
     `INSERT INTO recordings (${COLUMNS})
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        title = excluded.title,
        source = excluded.source,
@@ -67,7 +70,8 @@ export function upsertRecording(recording: Recording): void {
        mime_type = excluded.mime_type,
        duration_ms = excluded.duration_ms,
        created_at = excluded.created_at,
-       updated_at = excluded.updated_at`,
+       updated_at = excluded.updated_at,
+       interrupted = excluded.interrupted`,
     recording.id,
     recording.title,
     recording.source,
@@ -76,6 +80,7 @@ export function upsertRecording(recording: Recording): void {
     recording.durationMs,
     recording.createdAt,
     recording.updatedAt,
+    recording.interrupted ? 1 : 0,
   );
 }
 

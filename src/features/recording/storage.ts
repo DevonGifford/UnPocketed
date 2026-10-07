@@ -2,6 +2,8 @@ import { Directory, File, Paths } from "expo-file-system";
 
 import type { Recording } from "@/types";
 
+import { normaliseSidecar, type Sidecar } from "./sidecar";
+
 /*
  * Keep original audio in Paths.document: Android may evict Paths.cache (§3.2).
  *
@@ -19,17 +21,6 @@ const MIME_TYPES: Record<string, string> = {
   aac: "audio/aac",
   wav: "audio/wav",
 };
-
-interface Sidecar {
-  id: string;
-  title: string;
-  source: Recording["source"];
-  fileName: string;
-  mimeType: string;
-  durationMs: number;
-  createdAt: string;
-  updatedAt: string;
-}
 
 function recordingsDirectory(): Directory {
   const directory = new Directory(Paths.document, DIRECTORY_NAME);
@@ -72,6 +63,9 @@ function recoveredSidecar(file: File): Sidecar {
     durationMs: 0,
     createdAt: recordedAt,
     updatedAt: recordedAt,
+    // TODO(v0.0.4 review): A sidecar write can fail after an interrupted file
+    // has moved here. Probe the MP4 index before assuming this file is playable.
+    interrupted: false,
   };
 }
 
@@ -107,6 +101,7 @@ function newRecordingId(at: Date): string {
  * @param args.sourceUri Temporary recorder URI.
  * @param args.durationMs Final duration from the recorder.
  * @param args.recordedAt Timestamp override, mainly for deterministic callers.
+ * @param args.interrupted Whether capture ended with the app's termination.
  * @returns The Recording with its durable audio path.
  * @throws If the move or sidecar write fails. A move failure may leave audio
  * in temporary storage; a sidecar failure leaves it at the destination.
@@ -115,6 +110,8 @@ export async function persistRecording(args: {
   sourceUri: string;
   durationMs: number;
   recordedAt?: Date;
+  /** True when capture ended with the app's termination; see CONTEXT.md. */
+  interrupted?: boolean;
 }): Promise<Recording> {
   const recordedAt = args.recordedAt ?? new Date();
   const timestamp = recordedAt.toISOString();
@@ -138,6 +135,7 @@ export async function persistRecording(args: {
     durationMs: args.durationMs,
     createdAt: timestamp,
     updatedAt: timestamp,
+    interrupted: args.interrupted ?? false,
   };
   new File(directory, `${id}.json`).write(JSON.stringify(sidecar, null, 2));
 
@@ -163,7 +161,9 @@ export function listPersistedRecordings(): Recording[] {
 
     if (sidecarFile.exists) {
       try {
-        const sidecar = JSON.parse(sidecarFile.textSync()) as Sidecar;
+        const sidecar = normaliseSidecar(
+          JSON.parse(sidecarFile.textSync()) as Sidecar,
+        );
         return { ...sidecar, audioPath: file.uri };
       } catch {
         // Fall through to the filename-derived form below.
@@ -201,7 +201,7 @@ export function updateRecordingMetadata(
   let existing: Sidecar | null = null;
   if (sidecarFile.exists) {
     try {
-      existing = JSON.parse(sidecarFile.textSync()) as Sidecar;
+      existing = normaliseSidecar(JSON.parse(sidecarFile.textSync()) as Sidecar);
     } catch {
       // An unreadable sidecar is replaced from the file's own metadata.
     }

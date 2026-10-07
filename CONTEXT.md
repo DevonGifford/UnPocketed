@@ -20,6 +20,10 @@ _Avoid_: master, raw, source file
 Whether a Recording was `recorded` by Unpocketed or `imported` from elsewhere. Past that distinction, both behave identically.
 _Avoid_: origin, type, kind
 
+**Interrupted**:
+A Recording whose capture ended with Unpocketed's termination rather than with the user stopping it. Its original audio is preserved and exportable, but the container lacks the index needed to play it, so it cannot be played back, and its duration is an estimate rather than a measurement.
+_Avoid_: corrupt, broken, damaged, failed, crashed, truncated
+
 **Import**:
 Bringing an externally-created audio file under Unpocketed's management by copying it into managed storage.
 _Avoid_: upload (nothing is sent anywhere — see **Export**), add, attach, sync

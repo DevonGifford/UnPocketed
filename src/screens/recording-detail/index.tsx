@@ -3,7 +3,11 @@ import { Pressable, ScrollView, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
 import { Text } from "@/components/ui/text";
-import { formatDuration, formatRecordedAt } from "@/lib/format";
+import {
+  formatApproximateDuration,
+  formatDuration,
+  formatRecordedAt,
+} from "@/lib/format";
 import {
   backfillDuration,
   deleteRecording,
@@ -12,9 +16,13 @@ import {
 } from "@/features/library";
 import { usePlayback } from "@/features/playback";
 import { PlaybackControls } from "@/components/playback-controls";
+import { InterruptedNotice } from "@/components/interrupted-notice";
 import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
 import { DeleteRecordingDialog } from "@/components/delete-recording-dialog";
 import type { TranscriptionState, Transcript } from "@/types";
+
+/** How far a stored duration may sit from the player's before it is rewritten. */
+const DURATION_DRIFT_MS = 1_000;
 
 /** A tappable text action. Destructive actions are never the easiest tap (§25). */
 function Action({
@@ -49,7 +57,9 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   // Called before the early return below, and so unconditionally: the player
   // takes a null source until the recording is read.
   const playback = usePlayback(
-    recording?.audioPath ?? null,
+    // An interrupted recording cannot be opened, so the player is never given
+    // it — loading it would only fail, and its stored duration is the estimate.
+    recording && !recording.interrupted ? recording.audioPath : null,
     recording?.durationMs ?? 0,
   );
   const [selectedTranscriptId, setSelectedTranscriptId] = useState<string | null>(
@@ -59,9 +69,9 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const [deleting, setDeleting] = useState(false);
 
   /*
-   * A recording whose sidecar was lost has no stored duration, and decoding the
-   * file is the only way to learn one. The player has just done that, so write
-   * it down rather than re-deriving it on every visit.
+   * A recovered recording's stored duration is estimated from its file size,
+   * because only the player can measure one. It has just done that, so write
+   * the real value down rather than re-deriving it on every visit.
    *
    * Attempted once per recording, tracked by ref rather than by the guard
    * below: `backfillDuration` swallows an index-write failure by design, so the
@@ -73,7 +83,11 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const storedDurationMs = recording?.durationMs ?? 0;
   const playerDurationMs = playback.durationMs;
   useEffect(() => {
-    if (!recording || storedDurationMs > 0 || playerDurationMs <= 0) return;
+    if (!recording || recording.interrupted) return;
+    if (playerDurationMs <= 0) return;
+    // A measured duration agrees with itself, so only an estimate differs by
+    // enough to be worth a write.
+    if (Math.abs(playerDurationMs - storedDurationMs) < DURATION_DRIFT_MS) return;
     if (backfilledId.current === recording.id) return;
 
     backfilledId.current = recording.id;
@@ -110,14 +124,24 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         <View className="gap-1 px-4 pb-4 pt-2">
           <Text variant="title">{recording.title}</Text>
           <Text variant="subhead">
-            {formatDuration(playback.durationMs)} ·{" "}
+            {recording.interrupted
+              ? formatApproximateDuration(recording.durationMs)
+              : formatDuration(playback.durationMs)}{" "}
+            ·{" "}
             {formatRecordedAt(recording.createdAt)} ·{" "}
             {recording.source === "imported" ? "Imported" : "Recorded"}
           </Text>
         </View>
 
-        {/* Playback (§16) — available whether or not a transcript exists. */}
-        <PlaybackControls playback={playback} />
+        {/*
+          Playback (§16) — available whether or not a transcript exists, and
+          absent only for an interrupted recording, which §16 now excepts.
+        */}
+        {recording.interrupted ? (
+          <InterruptedNotice />
+        ) : (
+          <PlaybackControls playback={playback} />
+        )}
 
         {/* Transcripts (§22, §23). Multiple coexist; retranscription is additive. */}
         <View className="px-4 pt-6">

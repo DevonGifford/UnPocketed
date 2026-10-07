@@ -6,7 +6,11 @@ import { HudFrame } from "@/components/hud-frame";
 import { Text } from "@/components/ui/text";
 import { mockRecordings } from "@/mocks/recordings";
 import { useLibrary } from "@/features/library";
-import { formatDuration, formatRecordedAt } from "@/lib/format";
+import {
+  formatApproximateDuration,
+  formatDuration,
+  formatRecordedAt,
+} from "@/lib/format";
 
 function HeroAction({
   title,
@@ -183,7 +187,10 @@ export function HomeScreen() {
                 {recording.title}
               </Text>
               <Text variant="caption" className="tabular-nums">
-                {formatRecordedAt(recording.createdAt)} · {formatDuration(recording.durationMs)}
+                {formatRecordedAt(recording.createdAt)} ·{" "}
+                {recording.interrupted
+                  ? formatApproximateDuration(recording.durationMs)
+                  : formatDuration(recording.durationMs)}
               </Text>
             </View>
           </Pressable>

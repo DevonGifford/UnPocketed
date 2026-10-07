@@ -13,6 +13,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { PortalHost } from "@rn-primitives/portal";
 import { navColors } from "@/theme/navigation";
 import { SchemeProvider, useScheme } from "@/theme/scheme";
+import { RecordingSessionProvider } from "@/features/recording";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -76,7 +77,14 @@ function RootNavigator() {
 export default function RootLayout() {
   return (
     <SchemeProvider>
-      <RootNavigator />
+      {/*
+        Above the navigator deliberately: the recorder is released when its
+        owner unmounts, and releasing mid-recording leaves the file unplayable.
+        See the note in `features/recording/session-context.tsx`.
+      */}
+      <RecordingSessionProvider>
+        <RootNavigator />
+      </RecordingSessionProvider>
     </SchemeProvider>
   );
 }

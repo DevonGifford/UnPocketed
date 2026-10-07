@@ -10,6 +10,7 @@ function recording(overrides: Partial<Recording> & { id: string }): Recording {
     durationMs: 60_000,
     createdAt: "2026-04-07T14:32:00.000Z",
     updatedAt: "2026-04-07T14:32:00.000Z",
+    interrupted: false,
     ...overrides,
   };
 }

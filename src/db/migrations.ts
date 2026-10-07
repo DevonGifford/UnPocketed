@@ -38,10 +38,24 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 2,
+    up: (db) => {
+      // An interrupted Recording's audio survives but cannot be played, and its
+      // duration is estimated rather than measured. Existing rows are complete
+      // by definition: the app could not record an interrupted one before this.
+      db.execSync(
+        "ALTER TABLE recordings ADD COLUMN interrupted INTEGER NOT NULL DEFAULT 0",
+      );
+    },
+  },
 ];
 
 /** The version a fully migrated database reports. */
 export const latestSchemaVersion = migrations[migrations.length - 1].version;
+
+/** Every version in declaration order. Exported so the ordering can be tested. */
+export const migrationVersions = migrations.map((migration) => migration.version);
 
 /**
  * Brings `db` up to {@link latestSchemaVersion}, running only the migrations it

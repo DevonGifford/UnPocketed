@@ -13,6 +13,8 @@ export type RecordingFailureReason =
   | "prepare-timed-out"
   | "prepare-failed"
   | "start-failed"
+  | "service-unavailable"
+  | "recording-interrupted"
   | "finalise-failed"
   | "save-failed";
 
@@ -62,6 +64,23 @@ const FAILURES: Record<RecordingFailureReason, Omit<RecordingFailure, "reason">>
     title: "Recording did not begin",
     detail: "The recorder was ready but did not start. Nothing was recorded. Try again.",
     audioIntact: false,
+  },
+  "service-unavailable": {
+    // AudioRecorder.kt checks the service binder in record(), leaving a
+    // prepared recorder that can be used when the user retries.
+    title: "Recording could not start this time",
+    detail:
+      "Android did not hand Unpocketed the background recording service. Nothing was recorded. Try again — this usually clears on a second attempt.",
+    audioIntact: false,
+  },
+  "recording-interrupted": {
+    // MediaRecorder reported an error mid-capture. The bytes written so far are
+    // on disk but the container was never closed, so this is an Interrupted
+    // Recording — preserved and exportable, not playable (CONTEXT.md).
+    title: "Recording stopped unexpectedly",
+    detail:
+      "Something interrupted the recorder. The audio captured up to that point has been kept and added to your library, but it cannot be played back here — share it to a computer if you need to recover it.",
+    audioIntact: true,
   },
   "finalise-failed": {
     title: "This recording could not be closed properly",

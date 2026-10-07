@@ -43,6 +43,7 @@ export const mockRecordings: MockRecording[] = [
     durationMs: 2_892_000,
     createdAt: "2026-10-04T14:32:00.000Z",
     updatedAt: "2026-10-04T14:32:00.000Z",
+    interrupted: false,
     transcriptionState: "transcribed",
     transcripts: [
       transcript(
@@ -72,6 +73,7 @@ export const mockRecordings: MockRecording[] = [
     durationMs: 34_000,
     createdAt: "2026-10-04T08:12:00.000Z",
     updatedAt: "2026-10-04T08:12:00.000Z",
+    interrupted: false,
     transcriptionState: "not-transcribed",
     transcripts: [],
   },
@@ -84,6 +86,7 @@ export const mockRecordings: MockRecording[] = [
     durationMs: 5_412_000,
     createdAt: "2026-10-03T09:05:00.000Z",
     updatedAt: "2026-10-03T09:05:00.000Z",
+    interrupted: false,
     transcriptionState: "transcribing",
     transcripts: [],
   },
@@ -96,6 +99,7 @@ export const mockRecordings: MockRecording[] = [
     durationMs: 1_265_000,
     createdAt: "2026-09-28T16:40:00.000Z",
     updatedAt: "2026-09-28T16:40:00.000Z",
+    interrupted: false,
     transcriptionState: "failed",
     transcripts: [],
   },
