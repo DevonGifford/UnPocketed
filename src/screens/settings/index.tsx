@@ -68,15 +68,20 @@ export function SettingsScreen() {
           </View>
         ) : null}
 
+        {/*
+          Outside the padded block below: SettingRow brings its own px-4, so
+          nesting it there indents it out of line with the rows above.
+        */}
+        {provider ? (
+          <SettingRow
+            label="Get an API key"
+            value={provider.name}
+            onPress={() => void Linking.openURL(provider.keyUrl)}
+          />
+        ) : null}
+
         <View className="gap-2 px-4 pt-3">
           <Text variant="caption">Credentials are stored on this device.</Text>
-          {provider ? (
-            <SettingRow
-              label="Get an API key"
-              value={provider.name}
-              onPress={() => void Linking.openURL(provider.keyUrl)}
-            />
-          ) : null}
           <Text variant="caption">
             Transcribing sends that recording to the provider you choose. Their
             pricing and privacy terms apply. Unpocketed does not pay for or proxy
