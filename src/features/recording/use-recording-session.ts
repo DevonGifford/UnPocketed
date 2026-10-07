@@ -1,9 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  RecordingPresets,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from "expo-audio";
+import { RecordingPresets, useAudioRecorder } from "expo-audio";
 
 import { withTimeout, TimeoutError } from "@/lib/with-timeout";
 import type { Recording } from "@/types";
@@ -44,7 +40,12 @@ export interface RecordingSession {
   dismissFailure: () => void;
 }
 
-export function useRecordingSession(): RecordingSession {
+/**
+ * The session's state and transitions. Mounted **once**, by
+ * `RecordingSessionProvider` — screens consume `useRecordingSession` instead,
+ * because a recorder owned by a screen dies with it.
+ */
+export function useRecordingSessionState(): RecordingSession {
   /*
    * `directory: "document"` overrides the preset's default of `cache`.
    * `AudioRecorder.kt` resolves `options.directory ?: RecordingDirectory.CACHE`,
@@ -59,9 +60,9 @@ export function useRecordingSession(): RecordingSession {
     ...RecordingPresets.HIGH_QUALITY,
     directory: "document",
   });
-  const recorderState = useAudioRecorderState(recorder, STATE_POLL_MS);
 
   const [status, setStatus] = useState<RecordingSessionStatus>("idle");
+  const [tickedElapsedMs, setTickedElapsedMs] = useState(0);
   const [failure, setFailure] = useState<RecordingFailure | null>(null);
   const [lastSaved, setLastSaved] = useState<Recording | null>(null);
   const [finalElapsedMs, setFinalElapsedMs] = useState(0);
@@ -78,9 +79,30 @@ export function useRecordingSession(): RecordingSession {
     };
   }, []);
 
+  /*
+   * Poll the elapsed time, but only while recording.
+   *
+   * `expo-audio` emits no periodic status — its `recordingTimerJob` serves
+   * `forDuration` only — so a ticking timer has to be polled. `useAudioRecorderState`
+   * does that, but it polls for the whole life of the component and its `interval`
+   * argument is absent from the effect's dependencies, so it cannot be changed
+   * afterwards. This session now lives as long as the app does, and a native call
+   * four times a second while nothing is recording is not worth paying for.
+   */
+  useEffect(() => {
+    if (status !== "recording") return;
+
+    const interval = setInterval(() => {
+      setTickedElapsedMs(recorder.getStatus().durationMillis);
+    }, STATE_POLL_MS);
+
+    return () => clearInterval(interval);
+  }, [status, recorder]);
+
   const start = useCallback(async () => {
     setFailure(null);
     setFinalElapsedMs(0);
+    setTickedElapsedMs(0);
     setStatus("preparing");
 
     const permissionFailure = await ensureRecordingPermissions();
@@ -188,8 +210,7 @@ export function useRecordingSession(): RecordingSession {
 
   // While saving, the recorder's counter has already been reset, so the frozen
   // value is shown instead of letting the timer snap back to zero mid-save.
-  const elapsedMs =
-    status === "recording" ? recorderState.durationMillis : finalElapsedMs;
+  const elapsedMs = status === "recording" ? tickedElapsedMs : finalElapsedMs;
 
   return { status, elapsedMs, failure, lastSaved, toggle, dismissFailure };
 }

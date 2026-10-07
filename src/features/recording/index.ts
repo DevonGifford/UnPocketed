@@ -10,8 +10,11 @@ export {
   persistRecording,
   updateRecordingMetadata,
 } from "./storage";
-export {
-  useRecordingSession,
-  type RecordingSession,
-  type RecordingSessionStatus,
+export type {
+  RecordingSession,
+  RecordingSessionStatus,
 } from "./use-recording-session";
+export {
+  RecordingSessionProvider,
+  useRecordingSession,
+} from "./session-context";
