@@ -1,8 +1,32 @@
 # How is audio written during capture?
 
 Type: grilling
-Status: open
+Status: resolved
 Map: [De-risk v0.1](../map.md)
+Research: [05-capture-write-strategy.md](../research/05-capture-write-strategy.md)
+
+## Resolution
+
+**One growing `.m4a`. A recording killed mid-capture is preserved but not playable, and that is
+what §14 promises.** Resolved 2026-10-07.
+
+1. **One file.** Segments are *foreclosed*, not rejected: `expo-audio` does not expose
+   `setNextOutputFile`, and the stop/start alternative restarts a `microphone` foreground service
+   from the background once per segment — which ticket 02 established Android forbids.
+2. **Moot**, since segments are out.
+3. **Recover-and-adopt**, not recover-and-finalise: a `moov` atom cannot be synthesised on-device.
+   An orphan in `Paths.document/Audio/` is adopted into the library automatically, flagged as
+   interrupted and unplayable, exportable as the raw file, with its duration estimated from file
+   size and labelled approximate.
+4. **The app owns it, and currently does not.** The notification's Stop button finalises the file
+   correctly and emits `recordingStatusUpdate`, but `useAudioRecorder` is called with one argument
+   so the listener is never registered and every event is dropped. PR5 must register it.
+
+`aac_adts` would have made partials playable and was considered and declined, to keep §16's seek
+and duration exact. Full reasoning, costs and spec consequences are in the research file and the
+map's *Decisions so far*.
+
+Everything below is the question **as originally posed**, kept for the record.
 
 ## Question
 
