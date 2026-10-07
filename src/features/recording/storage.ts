@@ -4,7 +4,10 @@ import type { Recording } from "@/types";
 
 /*
  * Keep original audio in Paths.document: Android may evict Paths.cache (§3.2).
- * Until SQLite lands, metadata is a JSON sidecar beside each audio file.
+ *
+ * Metadata is a JSON sidecar beside each audio file, and stays that way now
+ * SQLite exists: the sidecar is the source of truth and the database is a
+ * rebuildable index over it. Audio whose row is missing is still listed here.
  */
 
 const DIRECTORY_NAME = "recordings";
@@ -32,6 +35,20 @@ function recordingsDirectory(): Directory {
   const directory = new Directory(Paths.document, DIRECTORY_NAME);
   directory.create({ intermediates: true, idempotent: true });
   return directory;
+}
+
+/**
+ * Rebuilds a playable URI from a stored file name. The index stores names
+ * rather than URIs because the document directory's path is not stable across
+ * installs, so a stored absolute path goes stale while the file survives.
+ */
+export function audioPathFor(fileName: string): string {
+  return new File(recordingsDirectory(), fileName).uri;
+}
+
+/** The inverse of {@link audioPathFor}: the name the index should store. */
+export function fileNameOf(audioPath: string): string {
+  return audioPath.split("/").pop() ?? audioPath;
 }
 
 function extensionOf(uri: string): string {
@@ -117,6 +134,14 @@ export function listPersistedRecordings(): Recording[] {
       }
     }
 
+    // Without a sidecar the only metadata left is the file itself. Prefer its
+    // own timestamps over the epoch: a recovered recording that claims 1970
+    // sorts to the bottom of the library permanently. Duration cannot be
+    // recovered without decoding, so it stays 0 until playback reports it.
+    const recordedAt = new Date(
+      file.creationTime ?? file.lastModified ?? Date.now(),
+    ).toISOString();
+
     return {
       id,
       title: "Recovered recording",
@@ -124,8 +149,8 @@ export function listPersistedRecordings(): Recording[] {
       audioPath: file.uri,
       mimeType: MIME_TYPES[extension] ?? "application/octet-stream",
       durationMs: 0,
-      createdAt: new Date(0).toISOString(),
-      updatedAt: new Date(0).toISOString(),
+      createdAt: recordedAt,
+      updatedAt: recordedAt,
     };
   });
 
