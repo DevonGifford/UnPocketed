@@ -4,6 +4,8 @@ import { Screen } from "@/components/screen";
 import { Text } from "@/components/ui/text";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 import { useRecording } from "@/features/library";
+import { usePlayback } from "@/features/playback";
+import { PlaybackControls } from "@/components/playback-controls";
 import type { TranscriptionState, Transcript } from "@/types";
 
 /** A tappable text action. Destructive actions are never the easiest tap (§25). */
@@ -35,6 +37,12 @@ function Action({
 
 export function RecordingDetailScreen({ id }: { id: string }) {
   const { recording } = useRecording(id);
+  // Called before the early return below, and so unconditionally: the player
+  // takes a null source until the recording is read.
+  const playback = usePlayback(
+    recording?.audioPath ?? null,
+    recording?.durationMs ?? 0,
+  );
   const [selectedTranscriptId, setSelectedTranscriptId] = useState<string | null>(
     null,
   );
@@ -68,37 +76,14 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         <View className="gap-1 px-4 pb-4 pt-2">
           <Text variant="title">{recording.title}</Text>
           <Text variant="subhead">
-            {formatDuration(recording.durationMs)} ·{" "}
+            {formatDuration(playback.durationMs)} ·{" "}
             {formatRecordedAt(recording.createdAt)} ·{" "}
             {recording.source === "imported" ? "Imported" : "Recorded"}
           </Text>
         </View>
 
         {/* Playback (§16) — available whether or not a transcript exists. */}
-        <View className="border-y border-border px-4 py-5">
-          <View className="flex-row items-center justify-center gap-8">
-            <Action label="−15s" />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Play recording"
-              className="h-16 w-16 items-center justify-center rounded-full border border-border active:opacity-60"
-            >
-              <Text variant="headline">▶</Text>
-            </Pressable>
-            <Action label="+15s" />
-          </View>
-          <View className="mt-4 h-1 rounded-full bg-border">
-            <View className="h-1 w-1/3 rounded-full bg-muted-foreground" />
-          </View>
-          <View className="mt-2 flex-row justify-between">
-            <Text variant="caption" className="tabular-nums">
-              {formatDuration(recording.durationMs / 3)}
-            </Text>
-            <Text variant="caption" className="tabular-nums">
-              {formatDuration(recording.durationMs)}
-            </Text>
-          </View>
-        </View>
+        <PlaybackControls playback={playback} />
 
         {/* Transcripts (§22, §23). Multiple coexist; retranscription is additive. */}
         <View className="px-4 pt-6">
