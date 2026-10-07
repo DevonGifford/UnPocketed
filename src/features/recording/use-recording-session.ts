@@ -16,6 +16,7 @@ import {
 } from "./errors";
 import { ensureRecordingPermissions } from "./permissions";
 import { persistRecording } from "./storage";
+import { recoverOrphanedRecordings } from "./recovery";
 import { indexRecording } from "@/features/library";
 
 /**
@@ -120,6 +121,12 @@ export function useRecordingSessionState(): RecordingSession {
   const stoppingFromJs = useRef(false);
   /** Mirrors the polled elapsed time for the status listener, which cannot close over state. */
   const tickedElapsedRef = useRef(0);
+  /*
+   * Startup recovery, held so `start` can wait on it. Adopting an orphan
+   * *moves* the file, so it must never overlap a live recorder — and the
+   * capture directory is where both live.
+   */
+  const recovery = useRef<Promise<unknown> | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -136,6 +143,23 @@ export function useRecordingSessionState(): RecordingSession {
    */
   useEffect(() => {
     void applyAudioMode();
+  }, []);
+
+  /*
+   * §14: adopt anything the app died holding, once, at startup. A recording
+   * that stopped stays stopped — Android forbids starting a microphone
+   * foreground service from the background, so this can only ever mean filing
+   * what is already on disk.
+   */
+  useEffect(() => {
+    const pending = recoverOrphanedRecordings()
+      .then((recovered) => {
+        recovered.forEach(indexRecording);
+        return recovered;
+      })
+      .catch(() => []);
+
+    recovery.current = pending;
   }, []);
 
   /*
@@ -233,6 +257,10 @@ export function useRecordingSessionState(): RecordingSession {
     tickedElapsedRef.current = 0;
     stoppingFromJs.current = false;
     setStatus("preparing");
+
+    // Recovery moves files out of the capture directory, which is where this
+    // recording is about to be created. Let it finish first.
+    if (recovery.current) await recovery.current;
 
     const permissionFailure = await ensureRecordingPermissions();
     if (permissionFailure) {
