@@ -34,9 +34,14 @@ const FAILURES: Record<ImportFailureReason, Omit<ImportFailure, "reason">> = {
       "Android did not hand the file to Unpocketed. Nothing has been imported. Try again, or pick the file from a different app in the chooser.",
   },
   "copy-failed": {
-    title: "That recording could not be copied into your library",
+    // Deliberately does not claim nothing landed. `persistRecording` moves the
+    // audio before writing its sidecar, so a sidecar failure leaves the file in
+    // the recordings directory, where the next scan surfaces it as a recovered
+    // Recording. Telling the user to simply retry would hand them two entries
+    // for one file.
+    title: "This import did not finish",
     detail:
-      "Reading the file succeeded but storing it did not — most often because this device is low on space. Your original file is untouched. Free some space and try again.",
+      "Reading the file worked; storing it did not get all the way through — most often because this device is low on space. Your original file is untouched. Check your library before trying again: the recording may have arrived without its details.",
   },
 };
 
