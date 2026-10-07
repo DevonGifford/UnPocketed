@@ -15,6 +15,12 @@ export interface Recording {
   durationMs: number;
   createdAt: string;
   updatedAt: string;
+  /**
+   * Capture ended with the app's termination rather than with the user stopping
+   * it, so the container has no index: the audio is preserved and exportable
+   * but cannot be played, and `durationMs` is an estimate (see CONTEXT.md).
+   */
+  interrupted: boolean;
 }
 
 export interface Transcript {

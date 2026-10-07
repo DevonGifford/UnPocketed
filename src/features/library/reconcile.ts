@@ -25,7 +25,8 @@ function differs(onDisk: Recording, indexed: Recording): boolean {
     onDisk.mimeType !== indexed.mimeType ||
     onDisk.durationMs !== indexed.durationMs ||
     onDisk.createdAt !== indexed.createdAt ||
-    onDisk.updatedAt !== indexed.updatedAt
+    onDisk.updatedAt !== indexed.updatedAt ||
+    onDisk.interrupted !== indexed.interrupted
   );
 }
 

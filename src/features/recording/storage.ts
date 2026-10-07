@@ -29,6 +29,7 @@ interface Sidecar {
   durationMs: number;
   createdAt: string;
   updatedAt: string;
+  interrupted: boolean;
 }
 
 function recordingsDirectory(): Directory {
@@ -72,6 +73,9 @@ function recoveredSidecar(file: File): Sidecar {
     durationMs: 0,
     createdAt: recordedAt,
     updatedAt: recordedAt,
+    // Nothing about a sidecar-less file says capture was interrupted; a lost
+    // sidecar and a lost container index are different failures.
+    interrupted: false,
   };
 }
 
@@ -107,6 +111,7 @@ function newRecordingId(at: Date): string {
  * @param args.sourceUri Temporary recorder URI.
  * @param args.durationMs Final duration from the recorder.
  * @param args.recordedAt Timestamp override, mainly for deterministic callers.
+ * @param args.interrupted Whether capture ended with the app's termination.
  * @returns The Recording with its durable audio path.
  * @throws If the move or sidecar write fails. A move failure may leave audio
  * in temporary storage; a sidecar failure leaves it at the destination.
@@ -115,6 +120,8 @@ export async function persistRecording(args: {
   sourceUri: string;
   durationMs: number;
   recordedAt?: Date;
+  /** True when capture ended with the app's termination; see CONTEXT.md. */
+  interrupted?: boolean;
 }): Promise<Recording> {
   const recordedAt = args.recordedAt ?? new Date();
   const timestamp = recordedAt.toISOString();
@@ -138,6 +145,7 @@ export async function persistRecording(args: {
     durationMs: args.durationMs,
     createdAt: timestamp,
     updatedAt: timestamp,
+    interrupted: args.interrupted ?? false,
   };
   new File(directory, `${id}.json`).write(JSON.stringify(sidecar, null, 2));
 
