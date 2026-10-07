@@ -76,6 +76,7 @@ export async function resolveProvider(
 
 export { createAssemblyAI } from "./assemblyai";
 export {
+  TranscriptionAborted,
   TranscriptionError,
   type AudioSource,
   type ProviderCapabilities,
@@ -84,4 +85,3 @@ export {
   type TranscriptionProvider,
   type TranscriptionResult,
 } from "./types";
-export { TranscriptionAborted } from "./assemblyai";

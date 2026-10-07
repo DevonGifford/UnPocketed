@@ -1,6 +1,7 @@
 import { File, UploadType } from "expo-file-system";
 
 import {
+  TranscriptionAborted,
   TranscriptionError,
   type AudioSource,
   type TranscriptionErrorKind,
@@ -96,9 +97,15 @@ async function request<T>(
       signal,
     });
   } catch (error) {
-    // TODO(PR7 review): Turn a caller abort into TranscriptionAborted. Passing
-    // through fetch's abort error makes the caller mark a live job as failed.
-    if (init.signal?.aborted) throw error;
+    /*
+     * A caller abort is not a network failure. Rethrowing fetch's own
+     * `AbortError` would reach the orchestration as an unrecognised error and
+     * mark a job that is still running at the provider as failed — which costs
+     * the user a second upload and a second bill on retry. The timeout signal
+     * is deliberately not treated this way: nothing asked for it, so a request
+     * that ran out of time really is a connectivity problem.
+     */
+    if (init.signal?.aborted) throw new TranscriptionAborted();
     throw new TranscriptionError(
       "offline",
       "Could not reach the transcription provider.",
@@ -179,18 +186,6 @@ async function uploadAudio(audio: AudioSource, apiKey: string): Promise<string> 
   }
 
   return parsed.upload_url;
-}
-
-/**
- * Raised when the caller aborts. Distinct from {@link TranscriptionError} so
- * the orchestration can tell "the user navigated away" — which must leave the
- * job in flight and re-attachable — from "this transcription failed".
- */
-export class TranscriptionAborted extends Error {
-  constructor() {
-    super("Transcription polling was stopped.");
-    this.name = "TranscriptionAborted";
-  }
 }
 
 /*

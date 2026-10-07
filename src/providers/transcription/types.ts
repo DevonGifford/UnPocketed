@@ -96,6 +96,21 @@ export class TranscriptionError extends Error {
   }
 }
 
+/**
+ * Raised when the caller's `signal` stops polling.
+ *
+ * Distinct from {@link TranscriptionError} because it is not a failure: the
+ * provider's job keeps running and stays re-attachable. Callers must tell the
+ * two apart before recording anything, since marking a live job failed is what
+ * makes a retry upload and pay for the same audio twice.
+ */
+export class TranscriptionAborted extends Error {
+  constructor() {
+    super("Transcription polling was stopped.");
+    this.name = "TranscriptionAborted";
+  }
+}
+
 export interface TranscriptionProvider {
   id: string;
   name: string;
