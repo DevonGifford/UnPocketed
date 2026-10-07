@@ -11,7 +11,7 @@ import type { Transcript, TranscriptionJob } from "@/types";
 
 import { transcriptionFailure, type TranscriptionFailure } from "./errors";
 import { allJobs, completeJob, jobFor, saveJob } from "./repository";
-import { newTranscriptId } from "./storage";
+import { newTranscriptId, transcriptIdForJob } from "./storage";
 
 /*
  * Running a transcription (§21).
@@ -102,7 +102,9 @@ function transcriptFrom(
 ): Transcript {
   const timestamp = nowIso();
   return {
-    id: newTranscriptId(new Date()),
+    // Derived from the reference where there is one, so finishing the same job
+    // twice updates one Transcript rather than creating two.
+    id: job.jobRef ? transcriptIdForJob(job.jobRef) : newTranscriptId(new Date()),
     recordingId: job.recordingId,
     providerId: job.providerId,
     // What actually ran (§20), which a provider may have substituted.

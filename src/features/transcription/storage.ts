@@ -52,11 +52,27 @@ function readJson<T>(file: File): T | null {
   }
 }
 
-/** Use `\D`: a character class containing a colon breaks Uniwind's scan. */
+/** Use `\D` and `\W`: a character class containing a colon breaks Uniwind's scan. */
 export function newTranscriptId(at: Date): string {
   const stamp = at.toISOString().replace(/\D/g, "").slice(0, 14);
   const suffix = Math.random().toString(36).slice(2, 8);
   return `txn-${stamp}-${suffix}`;
+}
+
+/**
+ * The id a completed job's Transcript takes, derived from the job reference.
+ *
+ * This is what makes completion safe to repeat. Two pollers can finish the same
+ * job — a screen that re-attached on focus and the launch-time resume, or a
+ * crash between writing the transcript and clearing the job — and a random id
+ * would turn each into a separate Transcript of the same audio. Deriving it
+ * means the second write lands on the same file and upserts the same row.
+ *
+ * @param jobRef The provider's reference. Non-word characters are stripped
+ * because this becomes a filename, and a provider is free to put anything in it.
+ */
+export function transcriptIdForJob(jobRef: string): string {
+  return `txn-job-${jobRef.replace(/\W/g, "").slice(0, 64)}`;
 }
 
 /**
