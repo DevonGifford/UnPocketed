@@ -1,11 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import { useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
 import { Text } from "@/components/ui/text";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
-import { useRecording } from "@/features/library";
+import {
+  backfillDuration,
+  deleteRecording,
+  renameRecording,
+  useRecording,
+} from "@/features/library";
 import { usePlayback } from "@/features/playback";
 import { PlaybackControls } from "@/components/playback-controls";
+import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
+import { DeleteRecordingDialog } from "@/components/delete-recording-dialog";
 import type { TranscriptionState, Transcript } from "@/types";
 
 /** A tappable text action. Destructive actions are never the easiest tap (§25). */
@@ -36,7 +44,8 @@ function Action({
 }
 
 export function RecordingDetailScreen({ id }: { id: string }) {
-  const { recording } = useRecording(id);
+  const router = useRouter();
+  const { recording, refresh } = useRecording(id);
   // Called before the early return below, and so unconditionally: the player
   // takes a null source until the recording is read.
   const playback = usePlayback(
@@ -46,6 +55,22 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const [selectedTranscriptId, setSelectedTranscriptId] = useState<string | null>(
     null,
   );
+  const [renaming, setRenaming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  /*
+   * A recording whose sidecar was lost has no stored duration, and decoding the
+   * file is the only way to learn one. The player has just done that, so write
+   * it down rather than re-deriving it on every visit.
+   */
+  const storedDurationMs = recording?.durationMs ?? 0;
+  const playerDurationMs = playback.durationMs;
+  useEffect(() => {
+    if (recording && storedDurationMs === 0 && playerDurationMs > 0) {
+      backfillDuration(recording.id, playerDurationMs);
+      refresh();
+    }
+  }, [recording, storedDurationMs, playerDurationMs, refresh]);
 
   /*
    * A Recording owns zero or more Transcripts (§10), but nothing produces one
@@ -150,13 +175,42 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         )}
 
         <View className="mt-8 border-t border-border">
+          <Action label="Rename recording" onPress={() => setRenaming(true)} />
           <Action label="Retranscribe with another model" />
           <Action label="Export transcript" />
           <Action label="Share original audio" />
           <Action label="Delete transcript" tone="destructive" />
-          <Action label="Delete recording and all associated data" tone="destructive" />
+          <Action
+            label="Delete recording and all associated data"
+            tone="destructive"
+            onPress={() => setDeleting(true)}
+          />
         </View>
       </ScrollView>
+
+      <RenameRecordingDialog
+        open={renaming}
+        onOpenChange={setRenaming}
+        currentTitle={recording.title}
+        onRename={(title) => {
+          setRenaming(false);
+          renameRecording(recording.id, title);
+          refresh();
+        }}
+      />
+
+      <DeleteRecordingDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        title={recording.title}
+        transcriptCount={transcripts.length}
+        onConfirm={() => {
+          setDeleting(false);
+          deleteRecording(recording.id);
+          // The screen is showing a recording that no longer exists.
+          router.back();
+        }}
+      />
     </Screen>
   );
 }

@@ -5,17 +5,24 @@ import {
   upsertRecording,
   upsertRecordings,
 } from "@/db/recordings";
-import { listPersistedRecordings } from "@/features/recording/storage";
+import {
+  deleteRecordingFiles,
+  listPersistedRecordings,
+  updateRecordingMetadata,
+} from "@/features/recording/storage";
 import type { Recording } from "@/types";
 
 import { planReconcile } from "./reconcile";
 
 /*
- * The library's read path.
+ * The library's reads and writes.
  *
- * Every function here degrades to scanning the recordings directory if the
- * index cannot be read. That is the point of keeping SQLite as an index: a
- * database failure costs query speed, never visibility of a recording (§3.2).
+ * Reads degrade to scanning the recordings directory if the index cannot be
+ * read. That is the point of keeping SQLite as an index: a database failure
+ * costs query speed, never visibility of a recording (§3.2).
+ *
+ * Writes go to the sidecar first and the index second, so the durable artifact
+ * is never behind the thing derived from it.
  */
 
 /**
@@ -77,4 +84,56 @@ export function findRecording(id: string): Recording | null {
     // Fall through to the directory scan.
   }
   return listPersistedRecordings().find((r) => r.id === id) ?? null;
+}
+
+/**
+ * Renames a recording (§15).
+ *
+ * Writes the sidecar first and the index second, so a failure in between leaves
+ * the title safe on disk and merely stale in the index.
+ *
+ * @returns The renamed Recording.
+ * @throws If the sidecar cannot be written. The index is left untouched then.
+ */
+export function renameRecording(id: string, title: string): Recording {
+  const renamed = updateRecordingMetadata(id, { title: title.trim() });
+  indexRecording(renamed);
+  return renamed;
+}
+
+/**
+ * Records a duration discovered at playback for a recording the index holds at
+ * 0 — a recording whose sidecar was lost keeps no duration, and decoding the
+ * file is the only way to learn one.
+ *
+ * @throws Never. A failure means the duration is read from the player again
+ * next time, which is what already happens.
+ */
+export function backfillDuration(id: string, durationMs: number): void {
+  if (durationMs <= 0) return;
+  try {
+    indexRecording(updateRecordingMetadata(id, { durationMs }));
+  } catch {
+    // Playback still reports the real duration; only the stored copy is missed.
+  }
+}
+
+/**
+ * Deletes a recording and its audio (§25).
+ *
+ * The caller is responsible for having asked first: this is the one operation
+ * that removes original audio, and §3.2 allows it only on an explicit request.
+ * Files go before the row, so a half-done delete cannot leave audio the library
+ * still lists.
+ *
+ * @throws If the audio cannot be deleted, so the caller can say the recording
+ * is still there rather than removing it from the list regardless.
+ */
+export function deleteRecording(id: string): void {
+  deleteRecordingFiles(id);
+  try {
+    forgetRecordings([id]);
+  } catch {
+    // The row now points at nothing; the next reconcile drops it.
+  }
 }

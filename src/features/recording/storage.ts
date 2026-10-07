@@ -51,6 +51,43 @@ export function fileNameOf(audioPath: string): string {
   return audioPath.split("/").pop() ?? audioPath;
 }
 
+/**
+ * Metadata derived from the audio file alone, for a recording whose sidecar is
+ * lost. Prefers the file's own timestamps over the epoch: a recovered recording
+ * claiming 1970 sorts to the bottom of the library permanently. Duration cannot
+ * be recovered without decoding, so it stays 0 until playback reports one.
+ */
+function recoveredSidecar(file: File): Sidecar {
+  const extension = extensionOf(file.name);
+  const recordedAt = new Date(
+    file.creationTime ?? file.lastModified ?? Date.now(),
+  ).toISOString();
+
+  return {
+    id: file.name.replace(/\.[^.]+$/, ""),
+    title: "Recovered recording",
+    source: "recorded",
+    fileName: file.name,
+    mimeType: MIME_TYPES[extension] ?? "application/octet-stream",
+    durationMs: 0,
+    createdAt: recordedAt,
+    updatedAt: recordedAt,
+  };
+}
+
+/** The stored audio for an id, whatever its extension. Null if none is stored. */
+function findAudioFile(directory: Directory, id: string): File | null {
+  const match = directory
+    .list()
+    .filter((entry): entry is File => entry instanceof File)
+    .find(
+      (file) =>
+        file.name.replace(/\.[^.]+$/, "") === id &&
+        file.extension.replace(/^\./, "").toLowerCase() !== "json",
+    );
+  return match ?? null;
+}
+
 function extensionOf(uri: string): string {
   const match = /\.([A-Za-z0-9]+)(?:\?|#|$)/.exec(uri);
   return match ? match[1].toLowerCase() : "m4a";
@@ -122,7 +159,6 @@ export function listPersistedRecordings(): Recording[] {
 
   const recordings = audioFiles.map((file): Recording => {
     const id = file.name.replace(/\.[^.]+$/, "");
-    const extension = extensionOf(file.name);
     const sidecarFile = new File(directory, `${id}.json`);
 
     if (sidecarFile.exists) {
@@ -134,27 +170,71 @@ export function listPersistedRecordings(): Recording[] {
       }
     }
 
-    // Without a sidecar the only metadata left is the file itself. Prefer its
-    // own timestamps over the epoch: a recovered recording that claims 1970
-    // sorts to the bottom of the library permanently. Duration cannot be
-    // recovered without decoding, so it stays 0 until playback reports it.
-    const recordedAt = new Date(
-      file.creationTime ?? file.lastModified ?? Date.now(),
-    ).toISOString();
-
-    return {
-      id,
-      title: "Recovered recording",
-      source: "recorded",
-      audioPath: file.uri,
-      mimeType: MIME_TYPES[extension] ?? "application/octet-stream",
-      durationMs: 0,
-      createdAt: recordedAt,
-      updatedAt: recordedAt,
-    };
+    return { ...recoveredSidecar(file), audioPath: file.uri };
   });
 
   return recordings.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/**
+ * Rewrites a recording's sidecar with new metadata.
+ *
+ * The sidecar is the source of truth, so it is written before any index row is
+ * touched: a failure part-way leaves the durable artifact correct and the index
+ * stale, which the next reconcile repairs. The reverse would lose the user's
+ * title — the one piece of metadata that cannot be re-derived from the file.
+ *
+ * @param id The recording to update.
+ * @param patch Fields to change. `updatedAt` is set here, not by the caller.
+ * @returns The updated Recording.
+ * @throws If no audio is stored under `id`, or the sidecar cannot be written.
+ */
+export function updateRecordingMetadata(
+  id: string,
+  patch: { title?: string; durationMs?: number },
+): Recording {
+  const directory = recordingsDirectory();
+  const audioFile = findAudioFile(directory, id);
+  if (!audioFile) throw new Error(`No audio is stored for recording ${id}`);
+
+  const sidecarFile = new File(directory, `${id}.json`);
+  let existing: Sidecar | null = null;
+  if (sidecarFile.exists) {
+    try {
+      existing = JSON.parse(sidecarFile.textSync()) as Sidecar;
+    } catch {
+      // An unreadable sidecar is replaced from the file's own metadata.
+    }
+  }
+
+  const sidecar: Sidecar = {
+    ...(existing ?? recoveredSidecar(audioFile)),
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
+  sidecarFile.write(JSON.stringify(sidecar, null, 2));
+
+  return { ...sidecar, audioPath: audioFile.uri };
+}
+
+/**
+ * Deletes a recording's audio and its sidecar.
+ *
+ * The only place stored audio is removed on purpose: §3.2 permits it when, and
+ * only when, the user explicitly asked. Audio goes first — if the sidecar write
+ * then fails, the orphan is invisible and reconcile drops its row, whereas
+ * deleting the sidecar first and failing on the audio would resurrect the
+ * recording as "Recovered recording" after the user asked for it gone.
+ *
+ * @throws If a file exists but cannot be deleted. Missing files are not an
+ * error, so calling this twice is safe.
+ */
+export function deleteRecordingFiles(id: string): void {
+  const directory = recordingsDirectory();
+  findAudioFile(directory, id)?.delete();
+
+  const sidecarFile = new File(directory, `${id}.json`);
+  if (sidecarFile.exists) sidecarFile.delete();
 }
 
 /** Stores an absolute title; relative labels such as "Today" belong in the UI. */
