@@ -92,6 +92,9 @@ export async function importAudioFile(): Promise<ImportOutcome> {
    * write rather than needing a second one. A file that cannot be decoded comes
    * back as 0 and is imported anyway: the user asked for this audio to be kept,
    * and §3.2 does not make a duration a condition of keeping it.
+   * TODO(PR6 review): Distinguish an unknown duration from a decode failure.
+   * Both return 0 today, so an unreadable file enters the library as an
+   * ordinary Recording with playback controls that cannot work.
    */
   const durationMs = await probeDurationMs(asset.uri);
 

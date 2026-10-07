@@ -92,6 +92,8 @@ export function classifyImport(picked: {
   name?: string | null;
   mimeType?: string | null;
 }): ImportFormat | null {
+  // TODO(PR6 review): A name or declared MIME type is only a format hint.
+  // Validate the copied file's media before promising that it can play.
   const named = picked.name ? extensionOfName(picked.name) : null;
   if (named && SUPPORTED[named]) {
     return { extension: named, mimeType: SUPPORTED[named] };
