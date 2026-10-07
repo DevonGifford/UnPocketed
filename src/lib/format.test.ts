@@ -1,4 +1,9 @@
-import { formatDuration, formatRecordedAt, formatTranscriptCount } from "./format";
+import {
+  formatApproximateDuration,
+  formatDuration,
+  formatRecordedAt,
+  formatTranscriptCount,
+} from "./format";
 
 describe("formatDuration", () => {
   it("formats under an hour as m:ss", () => {
@@ -40,5 +45,15 @@ describe("formatTranscriptCount", () => {
     expect(formatTranscriptCount(0)).toBe("Not transcribed");
     expect(formatTranscriptCount(1)).toBe("1 transcript");
     expect(formatTranscriptCount(3)).toBe("3 transcripts");
+  });
+});
+
+describe("formatApproximateDuration", () => {
+  it("marks the duration as estimated", () => {
+    expect(formatApproximateDuration(2_892_000)).toBe("~48:12");
+  });
+
+  it("still reads as a duration when nothing could be estimated", () => {
+    expect(formatApproximateDuration(0)).toBe("~0:00");
   });
 });

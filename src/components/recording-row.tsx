@@ -1,7 +1,11 @@
 import { Pressable, View } from "react-native";
 import { Text } from "@/components/ui/text";
 import { TranscriptionStatus } from "./transcription-status";
-import { formatDuration, formatRecordedAt } from "@/lib/format";
+import {
+  formatApproximateDuration,
+  formatDuration,
+  formatRecordedAt,
+} from "@/lib/format";
 import type { Recording, TranscriptionState } from "@/types";
 
 /**
@@ -11,6 +15,10 @@ import type { Recording, TranscriptionState } from "@/types";
  * The transcript props default to "nothing yet" because no Recording carries
  * transcripts until PR7; the row renders §21's states already so that PR7 is a
  * change of caller, not of component.
+ *
+ * An Interrupted Recording says so in place of its transcript status, and marks
+ * its duration as the estimate it is. That it cannot be played is the more
+ * useful fact about it, and it is carried by a word rather than by styling (§31).
  */
 export function RecordingRow({
   recording,
@@ -23,11 +31,19 @@ export function RecordingRow({
   transcriptCount?: number;
   onPress?: () => void;
 }) {
+  const duration = recording.interrupted
+    ? formatApproximateDuration(recording.durationMs)
+    : formatDuration(recording.durationMs);
+
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${recording.title}, ${formatDuration(recording.durationMs)}`}
+      accessibilityLabel={
+        recording.interrupted
+          ? `${recording.title}, about ${formatDuration(recording.durationMs)}, interrupted and cannot be played`
+          : `${recording.title}, ${formatDuration(recording.durationMs)}`
+      }
       className="min-h-[64px] justify-center border-b border-border px-4 py-3 active:bg-card"
     >
       <Text variant="headline" numberOfLines={1}>
@@ -35,15 +51,21 @@ export function RecordingRow({
       </Text>
       <View className="mt-1 flex-row items-center gap-2">
         <Text variant="caption" className="tabular-nums">
-          {formatDuration(recording.durationMs)}
+          {duration}
         </Text>
         <Text variant="caption">·</Text>
         <Text variant="caption">{formatRecordedAt(recording.createdAt)}</Text>
         <Text variant="caption">·</Text>
-        <TranscriptionStatus
-          state={transcriptionState}
-          transcriptCount={transcriptCount}
-        />
+        {recording.interrupted ? (
+          <Text variant="caption" className="text-destructive">
+            Interrupted
+          </Text>
+        ) : (
+          <TranscriptionStatus
+            state={transcriptionState}
+            transcriptCount={transcriptCount}
+          />
+        )}
       </View>
     </Pressable>
   );

@@ -13,6 +13,15 @@ export function formatDuration(ms: number): string {
     : `${minutes}:${pad(seconds)}`;
 }
 
+/**
+ * `~48:12`. For a duration derived from file size rather than measured, which
+ * is all an Interrupted Recording has — the measurement was in the index its
+ * container never got. The symbol lives here so every surface marks it alike.
+ */
+export function formatApproximateDuration(ms: number): string {
+  return `~${formatDuration(ms)}`;
+}
+
 /** `Today, 14:32` / `Yesterday, 09:05` / `4 Oct, 14:32` (§15). */
 export function formatRecordedAt(iso: string, now = new Date()): string {
   const date = new Date(iso);
