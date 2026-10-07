@@ -88,6 +88,8 @@ const FAILURES: Record<
       "Unpocketed could not note down the job before starting it, and would not have been able to recover it if the app closed. Nothing was sent or charged. Try again.",
   },
   "interrupted-before-upload": {
+    // TODO(PR7 review): A submitted request can reach the provider before the
+    // app receives its job reference. Do not promise no charge in that window.
     title: "Transcription was interrupted before it began",
     detail:
       "Unpocketed closed before the provider took the job, so nothing was transcribed or charged. Your recording is safe on this device and can be tried again.",

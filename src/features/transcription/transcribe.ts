@@ -23,9 +23,8 @@ import { newTranscriptId } from "./storage";
  * requires it, and the provider decision was taken on it — Deepgram lost
  * precisely because it keeps no job to re-attach to.
  *
- * Everything here is cancellable and nothing here is destructive: §21 says
- * failure must not affect the original recording, and no path in this file
- * touches stored audio.
+ * Polling can be stopped; the native upload cannot. No path here changes the
+ * original recording (§21).
  */
 
 export type TranscribeOutcome =
@@ -105,6 +104,9 @@ async function finish(
   } catch (error) {
     if (error instanceof TranscriptionAborted) return { status: "detached" };
 
+    // TODO(PR7 review): A lost connection or aborted GET does not stop a job
+    // already running at the provider. Keep its saved reference and try polling
+    // again; marking it failed makes Retry upload the audio a second time.
     const failure = toFailure(error);
     recordFailure(job, failure);
     return { status: "failed", failure };
@@ -209,6 +211,9 @@ export async function transcribeRecording(
   } catch (error) {
     if (error instanceof TranscriptionAborted) return { status: "detached" };
 
+    // TODO(PR7 review): After the provider gives us a job reference, a network
+    // error can leave a paid job running. Keep that job resumable rather than
+    // making Retry upload the audio again.
     const failure = toFailure(error);
     recordFailure(job, failure);
     return { status: "failed", failure };
@@ -232,6 +237,9 @@ export async function resumeJobFor(
   recordingId: string,
   signal?: AbortSignal,
 ): Promise<TranscribeOutcome> {
+  // TODO(PR8): Read the job first and use job.providerId to choose the provider.
+  // Otherwise a job started with another provider cannot be resumed after a
+  // provider switch.
   let provider: TranscriptionProvider | null;
   try {
     provider = await resolveProvider();
@@ -280,8 +288,9 @@ export async function resumeOutstandingJobs(
 
   for (const job of outstanding) {
     if (!job.jobRef) {
-      // Submitted nothing: the app died between recording the job and the
-      // provider answering. Mark it failed so the user can retry knowingly.
+      // TODO(PR7 review): We may have sent the request and lost its reply.
+      // Without a reference we cannot resume it, but we cannot promise that
+      // the provider received nothing or charged nothing either.
       recordFailure(job, transcriptionFailure("interrupted-before-upload", true));
       continue;
     }

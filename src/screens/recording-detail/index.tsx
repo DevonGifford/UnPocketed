@@ -179,6 +179,8 @@ export function RecordingDetailScreen({ id }: { id: string }) {
             {recording.interrupted ? null : (
               <View className="flex-row">
                 <View className="rounded-md border border-border">
+                  {/* TODO(PR7 review): A saved failed job has no retryable flag.
+                      Do not offer Try again for a bad key or an oversized file. */}
                   <Action
                     label={
                       transcriptionState === "transcribing"
@@ -312,6 +314,8 @@ export function RecordingDetailScreen({ id }: { id: string }) {
            * ON DELETE CASCADE on purpose — a cascade would let an index repair
            * destroy them — so this is the one path that removes transcripts the
            * user did not name individually, and §25 has just warned them.
+           * TODO(PR7 review): Handle a failed audio delete after transcripts
+           * are gone, and tell the user what was actually removed.
            */
           deleteTranscriptsFor(recording.id);
           deleteRecording(recording.id);

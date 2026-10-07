@@ -70,6 +70,8 @@ export async function writeApiKey(
  */
 export function maskApiKey(apiKey: string | null): string | null {
   if (!apiKey) return null;
+  // TODO(PR7 review): Keys of four characters or fewer currently show in full.
+  // Mask those too; Settings should never reveal the entire saved key.
   const tail = apiKey.slice(-4);
   return `${"•".repeat(Math.min(apiKey.length - tail.length, 20))}${tail}`;
 }

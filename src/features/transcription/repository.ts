@@ -137,8 +137,9 @@ export function saveJob(job: TranscriptionJob): TranscriptionJob {
  * Stores a finished Transcript and clears the job that produced it.
  *
  * The transcript is written before the job is cleared, so a failure in between
- * leaves a job that will be re-attached rather than a transcript that was never
- * saved. Re-attaching costs a poll; losing the text costs a re-upload (§3.2).
+ * keeps the text. A retry may then see both a transcript and its old job.
+ * TODO(PR7 review): Make completion safe to repeat. A crash here, or startup
+ * and a screen polling the same job, can save the same result twice.
  *
  * @throws If the transcript sidecar cannot be written.
  */
@@ -164,8 +165,8 @@ export function clearJob(recordingId: string): void {
   try {
     deleteJobFile(recordingId);
   } catch {
-    // The sidecar outlives its purpose; reconcile will not remove it, but the
-    // next successful transcription overwrites it.
+    // TODO(PR7 review): The next reconcile can restore this old job from its
+    // sidecar, even though its transcript has already been saved.
   }
   try {
     forgetJobs([recordingId]);

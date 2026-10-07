@@ -60,10 +60,9 @@ export function useRecordingTranscription(
 
   const mounted = useRef(true);
   /*
-   * Stops polling when the screen goes away. The provider's job keeps running
-   * and its reference is on disk, so the next launch re-attaches — abandoning
-   * the poll costs nothing, while leaving it running would poll forever behind
-   * a screen nobody is looking at.
+   * Stops polling on unmount. A pushed screen can leave this one mounted.
+   * TODO(PR7 review): Also stop on blur, and coordinate with startup polling
+   * so only one caller polls a given provider job at a time.
    */
   const abort = useRef<AbortController | null>(null);
 
@@ -78,11 +77,8 @@ export function useRecordingTranscription(
   /*
    * The job reference this screen is currently polling.
    *
-   * Leaving the screen aborts polling on purpose — nothing should poll behind a
-   * closed screen — but startup recovery only runs once per launch, so coming
-   * back would otherwise show `Transcribing…` with a dead control until the app
-   * was restarted. Returning re-attaches instead. The ref is what stops every
-   * focus and every refresh from starting another poll of the same job.
+   * Unmounting stops this screen's poll; returning re-attaches to the saved job.
+   * The ref prevents repeated focus events in this screen from adding a poll.
    */
   const attachedTo = useRef<string | null>(null);
 

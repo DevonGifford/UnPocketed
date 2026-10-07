@@ -96,8 +96,8 @@ async function request<T>(
       signal,
     });
   } catch (error) {
-    // An abort the caller asked for is not a network failure; let it through
-    // so the orchestration can tell "the user left" from "the network died".
+    // TODO(PR7 review): Turn a caller abort into TranscriptionAborted. Passing
+    // through fetch's abort error makes the caller mark a live job as failed.
     if (init.signal?.aborted) throw error;
     throw new TranscriptionError(
       "offline",

@@ -1,3 +1,5 @@
+// TODO(PR8): Move key lookup to the transcription feature. The provider
+// registry should describe providers without depending on feature storage.
 import { readApiKey } from "@/features/transcription/credentials";
 
 import { createAssemblyAI } from "./assemblyai";
