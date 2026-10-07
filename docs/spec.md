@@ -585,18 +585,48 @@ Transcription must use an adapter architecture.
 For example:
 
 ```ts
+interface ProviderCapabilities {
+  maxUploadBytes?: number;
+  maxDurationMs?: number;
+  supportsDiarization: boolean;
+}
+
+interface TranscriptionOptions {
+  // ...model, language and other per-request options
+  /** Called once, as soon as the provider issues a job id. Persist it synchronously. */
+  onJobRef?: (jobRef: string) => void;
+}
+
 interface TranscriptionProvider {
   id: string;
   name: string;
+  capabilities: ProviderCapabilities;
 
   transcribe(
     audio: AudioSource,
     options: TranscriptionOptions
   ): Promise<TranscriptionResult>;
+
+  /** Re-attach to a job already in flight. Undefined for synchronous providers. */
+  resume?(jobRef: string, options: TranscriptionOptions): Promise<TranscriptionResult>;
 }
 ```
 
 Application code outside the transcription layer should not contain provider-specific API logic.
+
+`capabilities` exists so that code outside the transcription layer can ask "will this file go
+through?" without knowing which provider is selected — which is the rule above. It is what lets a
+user-configured OpenAI-compatible endpoint refuse a file before spending an upload on it.
+
+`onJobRef` and `resume` exist because a long transcription outlives the app process on Android. A
+promise alone means a killed app loses the only reference to a job that is still running and
+already paid for, so the reference has to surface the moment the provider issues it rather than on
+completion. A synchronous provider implements neither member: it has no job id and nothing to
+re-attach to. Designing for the asynchronous case therefore costs the synchronous one nothing,
+while the reverse would force a breaking change once transcripts are already stored.
+
+Deliberately absent: progress reporting and partial results. Neither is needed while no provider
+requires an audio file to be split across requests.
 
 Provider implementations might eventually include:
 
@@ -625,10 +655,10 @@ Example:
 TRANSCRIPTION
 
 Provider
-Groq                         >
+AssemblyAI                   >
 
 Model
-whisper-large-v3-turbo       >
+universal-2                  >
 
 API key
 ••••••••••••••••••••         >
@@ -639,6 +669,11 @@ Credentials stored locally
 Provider credentials should be stored using secure device storage.
 
 The application should clearly explain that submitting audio for cloud transcription sends that recording to the selected external provider and that the provider's own pricing and privacy terms apply.
+
+That explanation should also say that the provider may **retain** what it is sent, and for how
+long, because "sent" and "kept" are different promises and only the second one matters to someone
+deciding whether to upload. The disclosure should not imply the user can opt out of retention
+unless the selected provider actually offers that on the endpoint Unpocketed uses.
 
 Unpocketed does not pay provider usage on the user's behalf.
 
