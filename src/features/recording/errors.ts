@@ -66,9 +66,8 @@ const FAILURES: Record<RecordingFailureReason, Omit<RecordingFailure, "reason">>
     audioIntact: false,
   },
   "service-unavailable": {
-    // AudioRecorder.kt refuses to prepare when background recording is on but
-    // the foreground service never bound. Transient, so worth retrying — unlike
-    // a generic prepare failure, which usually is not.
+    // AudioRecorder.kt checks the service binder in record(), leaving a
+    // prepared recorder that can be used when the user retries.
     title: "Recording could not start this time",
     detail:
       "Android did not hand Unpocketed the background recording service. Nothing was recorded. Try again — this usually clears on a second attempt.",

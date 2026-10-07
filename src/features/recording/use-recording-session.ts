@@ -24,29 +24,22 @@ import { indexRecording } from "@/features/library";
 /**
  * The real recording session (§11), replacing PR1's mocked one.
  *
- * `HIGH_QUALITY` is used unchanged: 128 kbps AAC in an `.m4a` container. §12
- * says to prefer reliable, good-quality audio over minimising storage, and the
- * alternative preset (`LOW_QUALITY`) emits `.3gp`/AMR-NB on Android, which no
- * candidate transcription provider accepts. The final bitrate is still open —
- * it depends on which provider ships first, since a 25 MB request cap and a
- * 2 GB one imply different answers.
+ * `HIGH_QUALITY` requests 128 kbps AAC in an `.m4a` container; Android may
+ * negotiate a lower bitrate. §12 prefers reliable, good-quality audio over
+ * minimising storage. The final encoding parameters still need a device test.
  */
 
-/**
- * Why preparing failed. The service-binding case is separated out because it is
- * worth retrying, which a generic prepare failure usually is not.
- */
 function prepareFailureReason(error: unknown): RecordingFailureReason {
-  if (error instanceof TimeoutError) return "prepare-timed-out";
+  return error instanceof TimeoutError ? "prepare-timed-out" : "prepare-failed";
+}
 
+function startFailureReason(error: unknown): RecordingFailureReason {
   const message = error instanceof Error ? error.message : String(error);
-  // AudioRecorder.kt throws this when background recording is enabled but the
-  // foreground service connection never bound.
-  if (message.includes("service connection is not bound")) {
-    return "service-unavailable";
-  }
-
-  return "prepare-failed";
+  // AudioRecorder.kt checks the foreground-service binder in record(), after
+  // prepareToRecordAsync() has succeeded.
+  return message.includes("service connection is not bound")
+    ? "service-unavailable"
+    : "start-failed";
 }
 
 /** How long to wait for `prepareToRecordAsync` before giving up (expo/expo#50706). */
@@ -138,10 +131,10 @@ export function useRecordingSessionState(): RecordingSession {
   }, []);
 
   /*
-   * §13's runtime half, applied once. This provider mounts above the navigator
-   * and before any screen, so the flag is set before the first recorder is
-   * constructed — which is when `AudioRecorder` reads it to decide whether to
-   * run a foreground service.
+   * §13's runtime half. The recorder already exists when this effect runs;
+   * expo-audio updates live recorders when the mode is applied.
+   * TODO(v0.0.4 review): Gate Start on this promise so a quick press cannot
+   * prepare against the default foreground-only mode.
    */
   useEffect(() => {
     void applyAudioMode();
@@ -241,6 +234,9 @@ export function useRecordingSessionState(): RecordingSession {
          * one file rather than scanning the directory: a scan would also move
          * anything else there, and this recorder has not released its own file
          * yet. A move that fails is left for the next launch (§3.2).
+         * TODO(v0.0.4 review): Native onError does not reset isRecording. Settle
+         * that recorder before accepting another Start, and only claim the file
+         * reached the library after adoption succeeds.
          */
         const interruptedUri = recorder.uri;
         if (interruptedUri) {
@@ -303,25 +299,29 @@ export function useRecordingSessionState(): RecordingSession {
       return;
     }
 
-    try {
-      await withTimeout(
-        recorder.prepareToRecordAsync(),
-        PREPARE_TIMEOUT_MS,
-        "Preparing the recorder",
-      );
-    } catch (error) {
-      if (mounted.current) {
-        setFailure(recordingFailure(prepareFailureReason(error)));
-        setStatus("idle");
+    // A service-binding failure happens in record(), leaving the recorder
+    // prepared. Reuse it on retry; preparing again would throw AlreadyPrepared.
+    if (!recorder.getStatus().canRecord) {
+      try {
+        await withTimeout(
+          recorder.prepareToRecordAsync(),
+          PREPARE_TIMEOUT_MS,
+          "Preparing the recorder",
+        );
+      } catch (error) {
+        if (mounted.current) {
+          setFailure(recordingFailure(prepareFailureReason(error)));
+          setStatus("idle");
+        }
+        return;
       }
-      return;
     }
 
     try {
       recorder.record();
-    } catch {
+    } catch (error) {
       if (mounted.current) {
-        setFailure(recordingFailure("start-failed"));
+        setFailure(recordingFailure(startFailureReason(error)));
         setStatus("idle");
       }
       return;
