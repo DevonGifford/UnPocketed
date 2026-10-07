@@ -27,6 +27,28 @@ import { newTranscriptId, transcriptIdForJob } from "./storage";
  * original recording (§21).
  */
 
+/*
+ * Which recordings this process is already polling.
+ *
+ * Three callers can reach the same job: the launch-time resume, a screen
+ * re-attaching on focus, and a fresh Transcribe. Without a claim they poll in
+ * parallel — the same request several times a second, and several callers
+ * racing to complete. Completion is idempotent so the result stays correct, but
+ * the duplicated work is real and the provider sees it.
+ *
+ * Module-level because every path into polling goes through this file, and it
+ * is deliberately **not** persisted: it describes this process, and a claim
+ * that outlived a crash would lock a job out of ever being resumed.
+ */
+const polling = new Set<string>();
+
+/** Claims a recording for polling. False when someone else already has it. */
+function claimPolling(recordingId: string): boolean {
+  if (polling.has(recordingId)) return false;
+  polling.add(recordingId);
+  return true;
+}
+
 export type TranscribeOutcome =
   | { status: "transcribed"; transcript: Transcript }
   /**
@@ -186,6 +208,8 @@ export async function transcribeRecording(
     return { status: "detached" };
   }
 
+  if (!claimPolling(recordingId)) return { status: "detached" };
+
   const audioFile = new File(recording.audioPath);
   const timestamp = nowIso();
 
@@ -206,6 +230,23 @@ export async function transcribeRecording(
     // avoids a transcription whose reference could never be recorded.
     return { status: "failed", failure: transcriptionFailure("not-recorded", true) };
   }
+
+  try {
+    return await runTranscription(provider, job, recording, audioFile, signal);
+  } finally {
+    polling.delete(recordingId);
+  }
+}
+
+/** The submit-and-poll half, split out so the claim above has one release. */
+async function runTranscription(
+  provider: TranscriptionProvider,
+  started: TranscriptionJob,
+  recording: { audioPath: string; mimeType: string },
+  audioFile: File,
+  signal?: AbortSignal,
+): Promise<TranscribeOutcome> {
+  let job = started;
 
   try {
     const result = await provider.transcribe(
@@ -280,15 +321,24 @@ export async function resumeJobFor(
   const job = jobFor(recordingId);
   if (!job || job.state !== "transcribing") return { status: "detached" };
 
+  // Someone is already watching this one — the launch-time resume, or a screen
+  // that claimed it first. Two pollers would duplicate every request.
+  if (!claimPolling(recordingId)) return { status: "detached" };
+
   if (!job.jobRef) {
     // Nothing was ever submitted, so nothing is running and nothing was
     // charged. Fail it so the user can retry knowingly.
     const failure = transcriptionFailure("interrupted-before-upload", true);
     recordFailure(job, failure);
+    polling.delete(recordingId);
     return { status: "failed", failure };
   }
 
-  return finish(provider, job, job.jobRef, signal);
+  try {
+    return await finish(provider, job, job.jobRef, signal);
+  } finally {
+    polling.delete(recordingId);
+  }
 }
 
 /**
@@ -324,9 +374,19 @@ export async function resumeOutstandingJobs(
       continue;
     }
 
-    const outcome = await finish(provider, job, job.jobRef, signal);
+    // Skip one a screen is already polling rather than racing it.
+    if (!claimPolling(job.recordingId)) continue;
+
+    let outcome: TranscribeOutcome;
+    try {
+      outcome = await finish(provider, job, job.jobRef, signal);
+    } finally {
+      polling.delete(job.recordingId);
+    }
+
     if (outcome.status === "transcribed") recovered.push(outcome.transcript);
-    if (outcome.status === "detached") break;
+    // A detached job stopped because the app is going away, so stop the sweep.
+    if (outcome.status === "detached" && !outcome.reason) break;
   }
 
   return recovered;

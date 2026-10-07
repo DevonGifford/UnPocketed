@@ -61,8 +61,11 @@ export function useRecordingTranscription(
   const mounted = useRef(true);
   /*
    * Stops polling on unmount. A pushed screen can leave this one mounted.
-   * TODO(PR7 review): Also stop on blur, and coordinate with startup polling
-   * so only one caller polls a given provider job at a time.
+   * Polling is claimed per recording in `transcribe.ts`, so this and the
+   * launch-time resume cannot both watch the same job.
+   *
+   * TODO(PR7 review): Also stop on blur, not only on unmount — a screen left
+   * behind on the stack keeps polling until it is popped.
    */
   const abort = useRef<AbortController | null>(null);
 
