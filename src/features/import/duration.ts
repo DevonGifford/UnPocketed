@@ -76,16 +76,27 @@ export async function probeDurationMs(
     while (Date.now() < deadline) {
       if (decodeFailed) return 0;
 
-      if (player.isLoaded) {
-        const seconds = player.duration;
-        return Number.isFinite(seconds) && seconds > 0
-          ? Math.round(seconds * 1000)
-          : 0;
+      /*
+       * Both conditions, not just `isLoaded`. `isLoaded` is ExoPlayer's
+       * STATE_READY, which it reaches once enough is buffered to start playing
+       * — and for some containers the duration is still `C.TIME_UNSET` at that
+       * moment, which `Playable.kt` reports as 0. Returning on `isLoaded` alone
+       * would throw away a duration that arrives a tick later.
+       */
+      const seconds = player.isLoaded ? player.duration : 0;
+      if (Number.isFinite(seconds) && seconds > 0) {
+        return Math.round(seconds * 1000);
       }
 
       await delay(PROBE_POLL_MS);
     }
 
+    /*
+     * Out of time. A VBR MP3 with no Xing header is the realistic case: the
+     * duration is only knowable by scanning the file, which for two hours of
+     * audio can outlast any wait worth making a user sit through. Import
+     * continues without it rather than refusing the file.
+     */
     return 0;
   } catch {
     // Reading a property off a released player throws; so does a player whose

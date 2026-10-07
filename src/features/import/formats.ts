@@ -109,23 +109,3 @@ export function classifyImport(picked: {
 
   return null;
 }
-
-/**
- * The title an imported Recording starts with: the file's own name, without its
- * extension. That is what makes a Pocket export recognisable in the library,
- * which §17 names as the use case.
- *
- * Not truncated. A filename is at most 255 bytes, rows clip to one line, and
- * rename exists — shortening the user's own name for them would be worse.
- *
- * @returns The title, or null when the name carries nothing usable, so the
- * caller falls back to a timestamp.
- */
-export function importTitleFrom(name?: string | null): string | null {
-  if (!name) return null;
-
-  const withoutExtension = name.replace(/\.\w+$/, "");
-  const collapsed = withoutExtension.replace(/\s+/g, " ").trim();
-
-  return collapsed.length > 0 ? collapsed : null;
-}

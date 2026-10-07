@@ -7,7 +7,8 @@ import type { Recording } from "@/types";
 
 import { probeDurationMs } from "./duration";
 import { importFailure, type ImportFailure } from "./errors";
-import { classifyImport, importTitleFrom, PICKER_MIME_TYPES } from "./formats";
+import { classifyImport, PICKER_MIME_TYPES } from "./formats";
+import { importedAtFrom, importTitleFrom } from "./metadata";
 
 /*
  * Import (§17): bringing an externally-created audio file under Unpocketed's
@@ -103,13 +104,9 @@ export async function importAudioFile(): Promise<ImportOutcome> {
       title: importTitleFrom(asset.name) ?? undefined,
       extension: format.extension,
       mimeType: format.mimeType,
-      /*
-       * When the file was made, not when it was imported, so an archive of old
-       * recordings does not all land under today's date (§15 is chronological).
-       * `lastModified` is always populated — expo-document-picker falls back to
-       * the current time itself when the provider reports none.
-       */
-      recordedAt: asset.lastModified ? new Date(asset.lastModified) : undefined,
+      // When the file was made, where the picker reports something believable;
+      // otherwise the import time. See `importedAtFrom`.
+      recordedAt: importedAtFrom(asset.lastModified) ?? undefined,
     });
   } catch {
     return { status: "failed", failure: importFailure("copy-failed") };

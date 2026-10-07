@@ -1,4 +1,4 @@
-import { classifyImport, importTitleFrom } from "./formats";
+import { classifyImport } from "./formats";
 
 /*
  * §35 names import a highest-priority test area. What is worth testing is the
@@ -73,35 +73,5 @@ describe("classifyImport", () => {
       classifyImport({ name: "download", mimeType: "application/octet-stream" }),
     ).toBeNull();
     expect(classifyImport({})).toBeNull();
-  });
-});
-
-describe("importTitleFrom", () => {
-  it("uses the file's name without its extension", () => {
-    expect(importTitleFrom("Standup 2026-09-14.m4a")).toBe("Standup 2026-09-14");
-  });
-
-  it("keeps a name that carries no extension", () => {
-    expect(importTitleFrom("voice memo")).toBe("voice memo");
-  });
-
-  it("keeps Unicode intact", () => {
-    // §36's matrix tests Unicode filenames.
-    expect(importTitleFrom("会議メモ.mp3")).toBe("会議メモ");
-  });
-
-  it("does not shorten a long name, because rename exists", () => {
-    const long = "a".repeat(200);
-    expect(importTitleFrom(`${long}.wav`)).toBe(long);
-  });
-
-  it("collapses whitespace and trims", () => {
-    expect(importTitleFrom("  team   sync .wav")).toBe("team sync");
-  });
-
-  it("returns null when there is no usable name, so the caller uses a timestamp", () => {
-    expect(importTitleFrom(".mp3")).toBeNull();
-    expect(importTitleFrom("   ")).toBeNull();
-    expect(importTitleFrom(undefined)).toBeNull();
   });
 });
