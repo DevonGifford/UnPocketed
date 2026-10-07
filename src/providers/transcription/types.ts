@@ -42,13 +42,12 @@ export interface TranscriptionOptions {
   /** The model to request. Providers that expose only one may ignore it. */
   modelId: string;
   /**
-   * Called once, as soon as the provider issues a job reference. The caller
-   * persists it **synchronously**: a promise alone means an app killed
-   * mid-transcription loses the only handle on work that is still running and
-   * already paid for.
+   * Called once, as soon as the provider issues a job reference, and before
+   * any polling. The caller is expected to persist it **synchronously** —
+   * `features/transcription/transcribe.ts` explains what that buys.
    */
   onJobRef?: (jobRef: string) => void;
-  /** Aborts polling. Does not cancel the provider's job, which is already paid for. */
+  /** Stops polling. Does **not** cancel the provider's job, which runs on. */
   signal?: AbortSignal;
 }
 

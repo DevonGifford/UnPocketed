@@ -120,7 +120,6 @@ async function finish(
  * starts cleanly. Existing Transcripts are untouched — §22 makes
  * retranscription additive.
  *
- * @param recordingId The Recording to transcribe.
  * @param signal Stops polling. The provider's job keeps running and stays
  * re-attachable, so this is not a cancellation.
  * @returns What happened. `detached` is not a failure.

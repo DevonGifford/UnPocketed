@@ -3,26 +3,13 @@ import { useEffect, useRef } from "react";
 import { reconcileTranscripts } from "./repository";
 import { resumeOutstandingJobs } from "./transcribe";
 
-/*
- * Re-attaching to transcriptions the app died holding (§18, §21).
- *
- * The same shape and the same place in the lifecycle as
- * `recoverOrphanedRecordings`: run once at startup, above the navigator, so it
- * does not restart with a screen.
- *
- * This is what makes §21's `Transcribing` a fact rather than a local fiction. A
- * transcription runs on the provider's servers and is already paid for; if the
- * only handle on it were a promise in a JavaScript heap, an app death would
- * lose it and the recovery would be a second upload and a second bill. The job
- * reference is on disk from the moment the provider issues it, so relaunching
- * picks the work back up where it was.
- */
-
 /**
- * Resumes outstanding transcription jobs once per app launch.
+ * Re-attaches to transcriptions the app died holding, once per launch (§18).
  *
- * Mounted by `RecordingSessionProvider`'s neighbour above the navigator rather
- * than by a screen — polling must not stop because the user navigated.
+ * Mounted above the navigator, like the recording session and for the same
+ * reason: polling must not stop because the user navigated. This is what makes
+ * §21's `Transcribing` outlive the process — see `transcribe.ts` for why the
+ * job reference is on disk before any polling starts.
  */
 export function useResumeTranscriptions(): void {
   const started = useRef(false);
@@ -35,19 +22,14 @@ export function useResumeTranscriptions(): void {
 
     /*
      * Reconcile first. The job index can legitimately be empty — a fresh
-     * install, or a database that was dropped and rebuilt — and an empty
-     * result is not an error, so the repository's disk fallback never fires.
-     * Without this, a rebuild would silently abandon every job on disk, which
-     * is exactly the paid, in-flight work the sidecars exist to protect.
+     * install, or a database dropped and rebuilt — and an empty result is not
+     * an error, so the repository's disk fallback never fires. Without this, a
+     * rebuild would silently abandon every job on disk.
      */
-    try {
-      reconcileTranscripts();
-    } catch {
-      // Reconcile already swallows its own failures; this is belt and braces.
-    }
+    reconcileTranscripts();
 
-    // Failures are already recorded on the jobs themselves, so nothing here
-    // needs to surface: the next screen that reads a job shows its state.
+    // Failures are recorded on the jobs themselves, so nothing surfaces here:
+    // the next screen that reads a job shows its state.
     void resumeOutstandingJobs(controller.signal).catch(() => []);
 
     return () => controller.abort();

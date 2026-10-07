@@ -17,9 +17,6 @@ import type { Transcript, TranscriptionJob, TranscriptionState } from "@/types";
  * reads as `transcribing` while keeping the transcripts it already has, because
  * the question the state answers is "is something happening", not "is there
  * anything to read".
- *
- * @param job The Recording's outstanding job, or null when it has none.
- * @param transcriptCount How many Transcripts it already owns.
  */
 export function transcriptionStateOf(
   job: TranscriptionJob | null,
