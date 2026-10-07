@@ -757,17 +757,27 @@ Recorded as accepted, not omitted.
    > page of our documentation, or shorten the retention window by setting a time-to-live (TTL) on
    > the Data Controls page in the dashboard.
 
-   **UNVERIFIED — and it is the audio that matters most here.** The quoted source covers
-   *completed transcripts* only. It is **silent on how long the uploaded audio itself is
-   retained**, and no primary source was found that states it. §3.2 makes the audio the sacred
-   artifact and §26 is a privacy section, so "the provider keeps a copy of the recording, for how
-   long we do not know" is a materially different claim from "the provider keeps the text for 30
-   days". Resolve this before PR7 writes the §19 disclosure: it is the strongest argument against
-   this verdict, and if audio retention turns out to be unbounded or undocumented it is grounds to
-   revisit the ordering rather than merely to reword a disclosure.
+   The quote above covers *completed transcripts*. **Audio retention is the figure that matters
+   more** — §3.2 makes the recording the sacred artifact — and it is shorter. Source:
+   [Data retention and model training](https://assemblyai.com/docs/faq/how-long-does-aai-retain-data)
+   (retrieved 2026-10-07), for the async production environment with no BAA or TTL configured:
 
-   The mitigations, for transcripts: retention is bounded at 30 days by default, a TTL can shorten
-   it, and `DELETE /v2/transcript/{id}` removes a transcript on demand. Under §19 this is the user's own
+   > Deletion process begins at 24 hours and is at most 48 hours
+
+   — against *"begins at 30 days"* for the transcription artifacts. So the **audio is gone inside
+   48 hours** and only the text persists for 30 days, which is a materially milder §26 exposure
+   than the transcript figure alone suggests.
+
+   **One mitigation does not exist on our path, and it is worth stating plainly:** zero data
+   retention is offered for the **streaming** product when opted out of model training. The async
+   endpoint Unpocketed would use has **no zero-retention option** — only shorter TTLs, or BAA
+   terms defaulting to 72 hours. A privacy-maximising user therefore *cannot* configure their own
+   AssemblyAI account to store nothing, which is exactly what Deepgram gives for free. That is the
+   residual cost of this decision and it does not go away.
+
+   The mitigations that do apply: audio deletion begins at 24 hours unprompted, transcript
+   retention is bounded at 30 days with TTL presets down to 1 day, and `DELETE /v2/transcript/{id}`
+   removes a transcript on demand. Under §19 this is the user's own
    account and the provider's own terms, which §19 already requires Unpocketed to disclose. **But
    §19's current wording is not sufficient** — it requires explaining that submitting audio
    "sends that recording to the selected external provider". It does not say the provider may
@@ -793,10 +803,10 @@ Recorded as accepted, not omitted.
 Findings that invalidate or outrun something the spec already assumes.
 
 - **§19 is incomplete, not wrong.** It requires disclosing that audio is *sent* to the provider.
-  With AssemblyAI the *transcript* is also stored for up to 30 days by default, and audio
-  retention is undocumented (see [§7](#7-what-this-decision-costs)). Add a retention sentence to
-  the disclosure once audio retention is established, and consider surfacing the provider's
-  TTL/DELETE controls.
+  With AssemblyAI the audio is also *stored*, for up to 48 hours, and the transcript for up to 30
+  days by default (see [§7](#7-what-this-decision-costs)). Add a retention sentence to the
+  disclosure naming both windows, and consider surfacing the provider's TTL/DELETE controls.
+  §19 should not imply the user can opt into zero retention on the async path — they cannot.
 - **§19's settings mockup shows `Groq` / `whisper-large-v3-turbo`.** That illustration is now
   **actively misleading**: Groq cannot be a first-class provider in v0.1 (ASH 7.2K, and a cap it
   fails on the plain reading). The mockup should read `AssemblyAI` / `universal-2`. This is the
