@@ -1,9 +1,20 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
+import { useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
 import { Text } from "@/components/ui/text";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
-import { findMockRecording } from "@/mocks/recordings";
+import {
+  backfillDuration,
+  deleteRecording,
+  renameRecording,
+  useRecording,
+} from "@/features/library";
+import { usePlayback } from "@/features/playback";
+import { PlaybackControls } from "@/components/playback-controls";
+import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
+import { DeleteRecordingDialog } from "@/components/delete-recording-dialog";
+import type { TranscriptionState, Transcript } from "@/types";
 
 /** A tappable text action. Destructive actions are never the easiest tap (§25). */
 function Action({
@@ -33,10 +44,53 @@ function Action({
 }
 
 export function RecordingDetailScreen({ id }: { id: string }) {
-  const recording = findMockRecording(id);
-  const [selectedTranscriptId, setSelectedTranscriptId] = useState<string | null>(
-    recording?.transcripts[0]?.id ?? null,
+  const router = useRouter();
+  const { recording, refresh } = useRecording(id);
+  // Called before the early return below, and so unconditionally: the player
+  // takes a null source until the recording is read.
+  const playback = usePlayback(
+    recording?.audioPath ?? null,
+    recording?.durationMs ?? 0,
   );
+  const [selectedTranscriptId, setSelectedTranscriptId] = useState<string | null>(
+    null,
+  );
+  const [renaming, setRenaming] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  /*
+   * A recording whose sidecar was lost has no stored duration, and decoding the
+   * file is the only way to learn one. The player has just done that, so write
+   * it down rather than re-deriving it on every visit.
+   *
+   * Attempted once per recording, tracked by ref rather than by the guard
+   * below: `backfillDuration` swallows an index-write failure by design, so the
+   * sidecar can be updated while the row still reads 0. `refresh` returns a new
+   * object every call, which re-runs this effect, and the guard would pass
+   * again — writing the sidecar on every render, forever.
+   */
+  const backfilledId = useRef<string | null>(null);
+  const storedDurationMs = recording?.durationMs ?? 0;
+  const playerDurationMs = playback.durationMs;
+  useEffect(() => {
+    if (!recording || storedDurationMs > 0 || playerDurationMs <= 0) return;
+    if (backfilledId.current === recording.id) return;
+
+    backfilledId.current = recording.id;
+    backfillDuration(recording.id, playerDurationMs);
+    refresh();
+  }, [recording, storedDurationMs, playerDurationMs, refresh]);
+
+  /*
+   * A Recording owns zero or more Transcripts (§10), but nothing produces one
+   * until PR7 — there is no provider and no API key yet. The interface below is
+   * built against the real shape and reads empty, rather than showing text no
+   * model generated (§3.7).
+   */
+  const transcripts: Transcript[] = [];
+  // Widened deliberately: §21's other states are rendered below and PR7 will
+  // supply them, so narrowing to the literal would delete working interface.
+  const transcriptionState = "not-transcribed" as TranscriptionState;
 
   if (!recording) {
     return (
@@ -47,7 +101,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   }
 
   const selected =
-    recording.transcripts.find((t) => t.id === selectedTranscriptId) ?? null;
+    transcripts.find((t) => t.id === selectedTranscriptId) ?? null;
 
   return (
     <Screen>
@@ -56,49 +110,26 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         <View className="gap-1 px-4 pb-4 pt-2">
           <Text variant="title">{recording.title}</Text>
           <Text variant="subhead">
-            {formatDuration(recording.durationMs)} ·{" "}
+            {formatDuration(playback.durationMs)} ·{" "}
             {formatRecordedAt(recording.createdAt)} ·{" "}
             {recording.source === "imported" ? "Imported" : "Recorded"}
           </Text>
         </View>
 
         {/* Playback (§16) — available whether or not a transcript exists. */}
-        <View className="border-y border-border px-4 py-5">
-          <View className="flex-row items-center justify-center gap-8">
-            <Action label="−15s" />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Play recording"
-              className="h-16 w-16 items-center justify-center rounded-full border border-border active:opacity-60"
-            >
-              <Text variant="headline">▶</Text>
-            </Pressable>
-            <Action label="+15s" />
-          </View>
-          <View className="mt-4 h-1 rounded-full bg-border">
-            <View className="h-1 w-1/3 rounded-full bg-muted-foreground" />
-          </View>
-          <View className="mt-2 flex-row justify-between">
-            <Text variant="caption" className="tabular-nums">
-              {formatDuration(recording.durationMs / 3)}
-            </Text>
-            <Text variant="caption" className="tabular-nums">
-              {formatDuration(recording.durationMs)}
-            </Text>
-          </View>
-        </View>
+        <PlaybackControls playback={playback} />
 
         {/* Transcripts (§22, §23). Multiple coexist; retranscription is additive. */}
         <View className="px-4 pt-6">
           <Text variant="headline">Transcripts</Text>
         </View>
 
-        {recording.transcripts.length === 0 ? (
+        {transcripts.length === 0 ? (
           <View className="gap-3 px-4 py-6">
             <Text variant="subhead">
-              {recording.transcriptionState === "transcribing"
+              {transcriptionState === "transcribing"
                 ? "Transcribing…"
-                : recording.transcriptionState === "failed"
+                : transcriptionState === "failed"
                   ? "The last attempt failed. Your recording is safe on this device."
                   : "This recording has not been transcribed yet."}
             </Text>
@@ -106,7 +137,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
               <View className="rounded-md border border-border">
                 <Action
                   label={
-                    recording.transcriptionState === "failed"
+                    transcriptionState === "failed"
                       ? "Try again"
                       : "Transcribe"
                   }
@@ -117,7 +148,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         ) : (
           <>
             <View className="flex-row gap-2 px-4 py-3">
-              {recording.transcripts.map((t) => {
+              {transcripts.map((t) => {
                 const isSelected = t.id === selectedTranscriptId;
                 return (
                   <Pressable
@@ -153,13 +184,50 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         )}
 
         <View className="mt-8 border-t border-border">
+          <Action label="Rename recording" onPress={() => setRenaming(true)} />
           <Action label="Retranscribe with another model" />
           <Action label="Export transcript" />
           <Action label="Share original audio" />
           <Action label="Delete transcript" tone="destructive" />
-          <Action label="Delete recording and all associated data" tone="destructive" />
+          <Action
+            label="Delete recording and all associated data"
+            tone="destructive"
+            onPress={() => setDeleting(true)}
+          />
         </View>
       </ScrollView>
+
+      <RenameRecordingDialog
+        open={renaming}
+        onOpenChange={setRenaming}
+        currentTitle={recording.title}
+        onRename={(title) => {
+          setRenaming(false);
+          renameRecording(recording.id, title);
+          refresh();
+        }}
+      />
+
+      <DeleteRecordingDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        title={recording.title}
+        transcriptCount={transcripts.length}
+        onConfirm={() => {
+          setDeleting(false);
+          // The player is holding the file open; let it go before the delete
+          // rather than relying on unmount happening first.
+          if (playback.isPlaying) playback.toggle();
+          deleteRecording(recording.id);
+          /*
+           * The screen is showing a recording that no longer exists. Back is a
+           * no-op when this screen was the entry point — a deep link, or a
+           * restored route on a cold start — so fall back to the library.
+           */
+          if (router.canGoBack()) router.back();
+          else router.replace("/recordings");
+        }}
+      />
     </Screen>
   );
 }

@@ -2,9 +2,13 @@
 export { recordingFailure, type RecordingFailure, type RecordingFailureReason } from "./errors";
 export { ensureRecordingPermissions } from "./permissions";
 export {
+  audioPathFor,
   defaultRecordingTitle,
+  deleteRecordingFiles,
+  fileNameOf,
   listPersistedRecordings,
   persistRecording,
+  updateRecordingMetadata,
 } from "./storage";
 export {
   useRecordingSession,

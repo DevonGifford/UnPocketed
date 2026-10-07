@@ -16,7 +16,7 @@ The app uses Expo SDK 57, Expo Router, Uniwind with Tailwind 4, and strict TypeS
 
 **Recordings stay on the device** until the user explicitly asks for cloud transcription. There is no Unpocketed server to send anything to, and §6 keeps it that way.
 
-**Devon stages and commits.** Write files to the working tree and stop there; leave the git index and history to him.
+**Commit as the work completes.** Stage and commit each slice as it lands, with a short conventional subject and a body only where it earns its place. Devon reads history as a narrative, so frequent small commits beat one large one at the end. Branches are fine to open; **pull requests are Devon's alone** — never open one.
 
 ## Comments and commit messages
 

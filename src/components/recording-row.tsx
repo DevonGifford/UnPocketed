@@ -2,17 +2,25 @@ import { Pressable, View } from "react-native";
 import { Text } from "@/components/ui/text";
 import { TranscriptionStatus } from "./transcription-status";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
-import type { MockRecording } from "@/mocks/recordings";
+import type { Recording, TranscriptionState } from "@/types";
 
 /**
  * One library entry (§15). A grouped row separated by a hairline — not a card,
  * per §28's "no unnecessary cards inside cards inside cards".
+ *
+ * The transcript props default to "nothing yet" because no Recording carries
+ * transcripts until PR7; the row renders §21's states already so that PR7 is a
+ * change of caller, not of component.
  */
 export function RecordingRow({
   recording,
+  transcriptionState = "not-transcribed",
+  transcriptCount = 0,
   onPress,
 }: {
-  recording: MockRecording;
+  recording: Recording;
+  transcriptionState?: TranscriptionState;
+  transcriptCount?: number;
   onPress?: () => void;
 }) {
   return (
@@ -33,8 +41,8 @@ export function RecordingRow({
         <Text variant="caption">{formatRecordedAt(recording.createdAt)}</Text>
         <Text variant="caption">·</Text>
         <TranscriptionStatus
-          state={recording.transcriptionState}
-          transcriptCount={recording.transcripts.length}
+          state={transcriptionState}
+          transcriptCount={transcriptCount}
         />
       </View>
     </Pressable>
