@@ -110,6 +110,11 @@ export function useRecordingTranscription(
         // aborted by navigating away mid-poll.
         attachedTo.current = null;
         if (outcome.status === "failed") setFailure(outcome.failure);
+        // A detached job is still running; `reason` is set only when the user
+        // should be told why Unpocketed stopped watching it.
+        if (outcome.status === "detached" && outcome.reason) {
+          setFailure(outcome.reason);
+        }
         setTranscripts(transcriptsFor(recordingId));
         setJob(jobFor(recordingId));
       });
@@ -132,8 +137,11 @@ export function useRecordingTranscription(
       .then((outcome) => {
         if (!mounted.current) return;
         if (outcome.status === "failed") setFailure(outcome.failure);
-        // `detached` means the poll stopped, not that anything went wrong —
-        // the job is still live and startup will re-attach to it.
+        // `detached` means the poll stopped, not that the transcription did.
+        // A reason is present only when something went wrong while watching.
+        if (outcome.status === "detached" && outcome.reason) {
+          setFailure(outcome.reason);
+        }
         refresh();
       })
       .finally(() => {

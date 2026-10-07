@@ -29,8 +29,12 @@ import { newTranscriptId } from "./storage";
 
 export type TranscribeOutcome =
   | { status: "transcribed"; transcript: Transcript }
-  /** Polling stopped, job still live on the provider. Startup will re-attach. */
-  | { status: "detached" }
+  /**
+   * Polling stopped; the job is still live on the provider and still
+   * re-attachable. Not a failure. `reason` is set when something went wrong
+   * enough to tell the user about, and absent when the caller simply left.
+   */
+  | { status: "detached"; reason?: TranscriptionFailure }
   | { status: "failed"; failure: TranscriptionFailure };
 
 function nowIso(): string {
@@ -42,6 +46,35 @@ function toFailure(error: unknown): TranscriptionFailure {
     return transcriptionFailure(error.kind, error.retryable);
   }
   return transcriptionFailure("unknown", true);
+}
+
+/**
+ * What to do with an error once the provider has issued a job reference.
+ *
+ * The rule this file turns on: after a reference exists, **only the job's own
+ * failure is terminal**. Everything else — a dropped connection, a 500 on the
+ * polling request, a key revoked mid-job — means "we could not ask", and the
+ * transcription is very likely still running and already paid for. Recording
+ * those as failed is what makes the next "Try again" upload the same audio and
+ * bill for it a second time, which is the specific outcome this provider was
+ * chosen to avoid.
+ *
+ * Leaving the job `transcribing` costs nothing: focus and launch both
+ * re-attach, and a key fixed in Settings makes an unauthorized poll succeed.
+ */
+function outcomeAfterSubmit(
+  job: TranscriptionJob,
+  error: unknown,
+): TranscribeOutcome {
+  if (error instanceof TranscriptionAborted) return { status: "detached" };
+
+  if (error instanceof TranscriptionError && error.kind === "job-failed") {
+    const failure = toFailure(error);
+    recordFailure(job, failure);
+    return { status: "failed", failure };
+  }
+
+  return { status: "detached", reason: transcriptionFailure("poll-interrupted") };
 }
 
 /** Records a failure on the job so the recording reads `failed` (§21). */
@@ -102,14 +135,7 @@ async function finish(
     });
     return { status: "transcribed", transcript: completeJob(transcriptFrom(job, result)) };
   } catch (error) {
-    if (error instanceof TranscriptionAborted) return { status: "detached" };
-
-    // TODO(PR7 review): A lost connection or aborted GET does not stop a job
-    // already running at the provider. Keep its saved reference and try polling
-    // again; marking it failed makes Retry upload the audio a second time.
-    const failure = toFailure(error);
-    recordFailure(job, failure);
-    return { status: "failed", failure };
+    return outcomeAfterSubmit(job, error);
   }
 }
 
@@ -208,11 +234,13 @@ export async function transcribeRecording(
 
     return { status: "transcribed", transcript: completeJob(transcriptFrom(job, result)) };
   } catch (error) {
+    // Which half failed decides everything. Before a reference exists nothing
+    // is running and nothing was charged, so recording a failure is right and
+    // retrying is free. After one exists, see `outcomeAfterSubmit`.
+    if (job.jobRef) return outcomeAfterSubmit(job, error);
+
     if (error instanceof TranscriptionAborted) return { status: "detached" };
 
-    // TODO(PR7 review): After the provider gives us a job reference, a network
-    // error can leave a paid job running. Keep that job resumable rather than
-    // making Retry upload the audio again.
     const failure = toFailure(error);
     recordFailure(job, failure);
     return { status: "failed", failure };

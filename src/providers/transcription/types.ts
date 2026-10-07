@@ -71,8 +71,19 @@ export type TranscriptionErrorKind =
   | "unauthorized"
   /** Network unreachable or the request timed out. Retryable unchanged (§33). */
   | "offline"
-  /** The provider accepted the job and then failed it. Retryable. */
+  /**
+   * The request reached the provider and it answered with an error status.
+   * Transport-level: it says nothing about whether a job is still running.
+   */
   | "provider-failed"
+  /**
+   * The provider ran the job and the job itself failed.
+   *
+   * The only **terminal** outcome once a job reference exists. Every other
+   * failure after that point means "we could not ask", and the job may well
+   * still be running — which is why they must not be conflated.
+   */
+  | "job-failed"
   /** The audio exceeds what this provider takes. Retrying will not help. */
   | "too-large"
   /** Anything else, including a response that did not parse. */

@@ -23,7 +23,9 @@ export type TranscriptionFailureReason =
   /** The job could not be written down, so it was not started. */
   | "not-recorded"
   /** The app died between recording the job and the provider answering. */
-  | "interrupted-before-upload";
+  | "interrupted-before-upload"
+  /** Contact was lost while polling a job that is still running. Not a failure. */
+  | "poll-interrupted";
 
 export interface TranscriptionFailure {
   reason: TranscriptionFailureReason;
@@ -59,6 +61,18 @@ const FAILURES: Record<
     title: "The provider could not transcribe this recording",
     detail:
       "The recording was sent but the provider did not return a transcript. Your recording is safe on this device and can be tried again.",
+  },
+  "job-failed": {
+    title: "The provider could not transcribe this recording",
+    detail:
+      "The provider accepted the recording and then failed to transcribe it. Your recording is safe on this device. Trying again submits it as new work.",
+  },
+  "poll-interrupted": {
+    // Not a failure: the job is still running and still paid for. Saying
+    // "failed" here would invite a retry that uploads and bills a second time.
+    title: "Still transcribing",
+    detail:
+      "Unpocketed lost contact with the provider while waiting. The transcription is still running — reopen this recording, or restart Unpocketed, and it will be picked up where it left off. You will not be charged twice.",
   },
   "too-large": {
     title: "This recording is too long for the provider",
@@ -112,6 +126,8 @@ const NOT_RETRYABLE: TranscriptionFailureReason[] = [
   "too-large",
   "interrupted",
   "recording-missing",
+  // The job is still running; retrying would pay for the same audio twice.
+  "poll-interrupted",
 ];
 
 /**

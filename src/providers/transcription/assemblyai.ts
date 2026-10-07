@@ -224,8 +224,10 @@ async function awaitCompletion(
     }
 
     if (job.status === "error") {
+      // The job's own terminal state, not a transport problem. This reference
+      // is spent, so a retry has to submit new work.
       throw new TranscriptionError(
-        "provider-failed",
+        "job-failed",
         job.error ?? "The provider could not transcribe this recording.",
       );
     }
