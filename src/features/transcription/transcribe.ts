@@ -216,6 +216,45 @@ export async function transcribeRecording(
 }
 
 /**
+ * Re-attaches to one Recording's in-flight job and polls it to completion.
+ *
+ * Needed because leaving the screen aborts polling by design: without this, a
+ * recording would sit on `Transcribing…` with a disabled control for the rest
+ * of the session, since startup recovery runs once per launch. For an hour-long
+ * recording, leaving the screen mid-transcription is the ordinary case rather
+ * than an edge one.
+ *
+ * @returns What happened. `detached` means there was nothing to re-attach to,
+ * or polling was stopped again.
+ * @throws Never.
+ */
+export async function resumeJobFor(
+  recordingId: string,
+  signal?: AbortSignal,
+): Promise<TranscribeOutcome> {
+  let provider: TranscriptionProvider | null;
+  try {
+    provider = await resolveProvider();
+  } catch {
+    return { status: "detached" };
+  }
+  if (!provider) return { status: "detached" };
+
+  const job = jobFor(recordingId);
+  if (!job || job.state !== "transcribing") return { status: "detached" };
+
+  if (!job.jobRef) {
+    // Nothing was ever submitted, so nothing is running and nothing was
+    // charged. Fail it so the user can retry knowingly.
+    const failure = transcriptionFailure("interrupted-before-upload", true);
+    recordFailure(job, failure);
+    return { status: "failed", failure };
+  }
+
+  return finish(provider, job, job.jobRef, signal);
+}
+
+/**
  * Re-attaches to every job left in flight by a previous run (§18).
  *
  * Run once at startup. A job with a reference is polled to completion; one

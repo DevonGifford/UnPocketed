@@ -13,7 +13,7 @@ import {
   transcriptsFor,
 } from "./repository";
 import { groupTranscriptsByRecording, transcriptionStateOf } from "./state";
-import { transcribeRecording } from "./transcribe";
+import { resumeJobFor, transcribeRecording } from "./transcribe";
 
 /*
  * Transcription's screen state.
@@ -75,6 +75,17 @@ export function useRecordingTranscription(
     };
   }, []);
 
+  /*
+   * The job reference this screen is currently polling.
+   *
+   * Leaving the screen aborts polling on purpose — nothing should poll behind a
+   * closed screen — but startup recovery only runs once per launch, so coming
+   * back would otherwise show `Transcribing…` with a dead control until the app
+   * was restarted. Returning re-attaches instead. The ref is what stops every
+   * focus and every refresh from starting another poll of the same job.
+   */
+  const attachedTo = useRef<string | null>(null);
+
   const refresh = useCallback(() => {
     if (!recordingId) {
       setTranscripts([]);
@@ -83,7 +94,30 @@ export function useRecordingTranscription(
     }
     ensureReconciled();
     setTranscripts(transcriptsFor(recordingId));
-    setJob(jobFor(recordingId));
+
+    const current = jobFor(recordingId);
+    setJob(current);
+
+    if (
+      current?.state === "transcribing" &&
+      current.jobRef &&
+      attachedTo.current !== current.jobRef
+    ) {
+      attachedTo.current = current.jobRef;
+
+      const controller = new AbortController();
+      abort.current = controller;
+
+      void resumeJobFor(recordingId, controller.signal).then((outcome) => {
+        if (!mounted.current) return;
+        // Let a later focus try again, whether this attempt finished or was
+        // aborted by navigating away mid-poll.
+        attachedTo.current = null;
+        if (outcome.status === "failed") setFailure(outcome.failure);
+        setTranscripts(transcriptsFor(recordingId));
+        setJob(jobFor(recordingId));
+      });
+    }
   }, [recordingId]);
 
   useFocusEffect(refresh);
@@ -96,6 +130,7 @@ export function useRecordingTranscription(
 
     const controller = new AbortController();
     abort.current = controller;
+    attachedTo.current = null;
 
     void transcribeRecording(recordingId, controller.signal)
       .then((outcome) => {

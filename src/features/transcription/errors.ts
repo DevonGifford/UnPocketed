@@ -94,10 +94,33 @@ const FAILURES: Record<
   },
 };
 
-/** Builds the user-facing failure for a reason. */
+/**
+ * Reasons that cannot be fixed by repeating the same request.
+ *
+ * The default lives here rather than being inferred at each call site: the
+ * provider's `TranscriptionError` makes the same judgement for its own kinds,
+ * and the same fact defaulting two different ways in two files is how they
+ * drift apart.
+ */
+const NOT_RETRYABLE: TranscriptionFailureReason[] = [
+  // The key is wrong or missing: retrying sends the same bad credential.
+  "unauthorized",
+  "not-configured",
+  // The audio itself is the problem, and it will not change.
+  "too-large",
+  "interrupted",
+  "recording-missing",
+];
+
+/**
+ * Builds the user-facing failure for a reason.
+ *
+ * @param retryable Overrides the default, for a provider error that classified
+ * itself. Omit it to use {@link NOT_RETRYABLE}.
+ */
 export function transcriptionFailure(
   reason: TranscriptionFailureReason,
-  retryable = true,
+  retryable = !NOT_RETRYABLE.includes(reason),
 ): TranscriptionFailure {
   return { reason, ...FAILURES[reason], retryable };
 }
