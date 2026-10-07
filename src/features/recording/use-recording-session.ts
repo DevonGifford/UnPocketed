@@ -45,7 +45,20 @@ export interface RecordingSession {
 }
 
 export function useRecordingSession(): RecordingSession {
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  /*
+   * `directory: "document"` overrides the preset's default of `cache`.
+   * `AudioRecorder.kt` resolves `options.directory ?: RecordingDirectory.CACHE`,
+   * so an in-progress recording would otherwise grow in a directory Android may
+   * evict — which §3.2 forbids for original audio, and which matters more now
+   * that a recording killed mid-capture is unplayable and the bytes are all
+   * that is left of it. `document` is `context.filesDir`, the same directory
+   * `Paths.document` resolves to, so a partial lands at `Paths.document/Audio/`
+   * where JS can still find it.
+   */
+  const recorder = useAudioRecorder({
+    ...RecordingPresets.HIGH_QUALITY,
+    directory: "document",
+  });
   const recorderState = useAudioRecorderState(recorder, STATE_POLL_MS);
 
   const [status, setStatus] = useState<RecordingSessionStatus>("idle");
