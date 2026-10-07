@@ -16,6 +16,7 @@ export {
   reconcileTranscripts,
   transcriptsFor,
 } from "./repository";
+export { useResumeTranscriptions } from "./resume-on-launch";
 export { groupTranscriptsByRecording, transcriptionStateOf } from "./state";
 export {
   hasOutstandingJob,
@@ -27,5 +28,7 @@ export {
   useRecordingTranscription,
   useTranscript,
   useTranscripts,
+  useTranscriptionSummaries,
   type RecordingTranscription,
+  type TranscriptionSummary,
 } from "./use-transcription";

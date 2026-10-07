@@ -14,10 +14,19 @@ import { PortalHost } from "@rn-primitives/portal";
 import { navColors } from "@/theme/navigation";
 import { SchemeProvider, useScheme } from "@/theme/scheme";
 import { RecordingSessionProvider } from "@/features/recording";
+import { useResumeTranscriptions } from "@/features/transcription";
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator() {
+  /*
+   * Re-attach to any transcription the app died holding (§18). Here rather than
+   * in a screen for the same reason the recording session is: the work outlives
+   * navigation, and polling that stopped on a back press would leave a job the
+   * user paid for unfinished until they happened to reopen the right screen.
+   */
+  useResumeTranscriptions();
+
   // The designs are monospace throughout, so the interface is wrong until the
   // typeface is in. Holding the splash avoids a visible reflow from the system
   // font to JetBrains Mono on launch.

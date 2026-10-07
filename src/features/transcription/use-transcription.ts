@@ -5,13 +5,14 @@ import type { Transcript, TranscriptionJob, TranscriptionState } from "@/types";
 
 import type { TranscriptionFailure } from "./errors";
 import {
+  allJobs,
   findTranscript,
   jobFor,
   listAllTranscripts,
   reconcileTranscripts,
   transcriptsFor,
 } from "./repository";
-import { transcriptionStateOf } from "./state";
+import { groupTranscriptsByRecording, transcriptionStateOf } from "./state";
 import { transcribeRecording } from "./transcribe";
 
 /*
@@ -153,4 +154,59 @@ export function useTranscript(id: string) {
   useFocusEffect(refresh);
 
   return { transcript, refresh };
+}
+
+/** One Recording's transcription summary, for a library row. */
+export interface TranscriptionSummary {
+  state: TranscriptionState;
+  transcriptCount: number;
+}
+
+/**
+ * Transcription state for every Recording at once, for the library list (§15).
+ *
+ * One pass over both indexes rather than a query per row: a list of a hundred
+ * recordings would otherwise make two hundred calls on every focus.
+ *
+ * @returns A lookup keyed by recording id, and a `refresh`. Recordings with no
+ * transcripts and no job are simply absent — the caller's default covers them.
+ */
+export function useTranscriptionSummaries() {
+  const [summaries, setSummaries] = useState<Map<string, TranscriptionSummary>>(
+    new Map(),
+  );
+
+  const refresh = useCallback(() => {
+    ensureReconciled();
+
+    const byRecording = groupTranscriptsByRecording(listAllTranscripts());
+    const jobs = new Map(allJobs().map((job) => [job.recordingId, job]));
+    const next = new Map<string, TranscriptionSummary>();
+
+    for (const [recordingId, owned] of byRecording) {
+      next.set(recordingId, {
+        state: transcriptionStateOf(jobs.get(recordingId) ?? null, owned.length),
+        transcriptCount: owned.length,
+      });
+    }
+
+    // A job with no transcripts yet still has a state worth showing.
+    for (const [recordingId, job] of jobs) {
+      if (next.has(recordingId)) continue;
+      next.set(recordingId, {
+        state: transcriptionStateOf(job, 0),
+        transcriptCount: 0,
+      });
+    }
+
+    setSummaries(next);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+
+  return { summaries, refresh };
 }
