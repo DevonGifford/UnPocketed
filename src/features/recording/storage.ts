@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 
-import type { Recording } from "@/types";
+import type { Recording, RecordingSource } from "@/types";
 
 import { normaliseSidecar, type Sidecar } from "./sidecar";
 
@@ -14,13 +14,30 @@ import { normaliseSidecar, type Sidecar } from "./sidecar";
 
 const DIRECTORY_NAME = "recordings";
 
+/*
+ * Used to label stored audio whose sidecar did not survive. It covers what the
+ * recorder writes *and* what Import accepts (§17), because both kinds of file
+ * live in this directory and either can lose its sidecar.
+ */
 const MIME_TYPES: Record<string, string> = {
   m4a: "audio/mp4",
   mp4: "audio/mp4",
   "3gp": "audio/3gpp",
   aac: "audio/aac",
   wav: "audio/wav",
+  mp3: "audio/mpeg",
+  webm: "audio/webm",
+  ogg: "audio/ogg",
+  opus: "audio/opus",
+  flac: "audio/flac",
 };
+
+/**
+ * Containers the recorder itself can write. Anything else in the recordings
+ * directory arrived through Import, which is the only way to tell the two
+ * apart once a sidecar is gone.
+ */
+const RECORDED_EXTENSIONS = ["m4a", "mp4", "3gp", "aac"];
 
 function recordingsDirectory(): Directory {
   const directory = new Directory(Paths.document, DIRECTORY_NAME);
@@ -47,6 +64,11 @@ export function fileNameOf(audioPath: string): string {
  * lost. Prefers the file's own timestamps over the epoch: a recovered recording
  * claiming 1970 sorts to the bottom of the library permanently. Duration cannot
  * be recovered without decoding, so it stays 0 until playback reports one.
+ *
+ * `source` is inferred from the container rather than assumed: the recorder
+ * only ever writes the formats in {@link RECORDED_EXTENSIONS}, so an MP3 here
+ * was certainly imported, and claiming Unpocketed recorded it would be a lie
+ * about where the user's audio came from.
  */
 function recoveredSidecar(file: File): Sidecar {
   const extension = extensionOf(file.name);
@@ -57,7 +79,7 @@ function recoveredSidecar(file: File): Sidecar {
   return {
     id: file.name.replace(/\.[^.]+$/, ""),
     title: "Recovered recording",
-    source: "recorded",
+    source: RECORDED_EXTENSIONS.includes(extension) ? "recorded" : "imported",
     fileName: file.name,
     mimeType: MIME_TYPES[extension] ?? "application/octet-stream",
     durationMs: 0,
@@ -97,11 +119,24 @@ function newRecordingId(at: Date): string {
 /**
  * Moves finished audio to durable storage, then writes its JSON sidecar.
  *
+ * Shared by recording and by Import (§17), which is why the metadata the two
+ * disagree on is overridable. Import still *moves*, and that is safe rather
+ * than destructive: `expo-document-picker` has already copied the user's file
+ * into the cache directory, so what moves here is a copy and the original is
+ * never touched.
+ *
  * Audio moves first so a failed sidecar write leaves recoverable audio (§3.2).
- * @param args.sourceUri Temporary recorder URI.
- * @param args.durationMs Final duration from the recorder.
+ * @param args.sourceUri Temporary recorder URI, or the picker's cache copy.
+ * @param args.durationMs Final duration from the recorder, or a probed one.
  * @param args.recordedAt Timestamp override, mainly for deterministic callers.
  * @param args.interrupted Whether capture ended with the app's termination.
+ * @param args.source Where the audio came from. Defaults to `recorded`.
+ * @param args.title Overrides the timestamp title, for an imported file's name.
+ * @param args.extension Overrides the extension read from `sourceUri`. Import
+ * needs this: the picker's cache copy takes its extension from the original
+ * display name, which may carry none at all.
+ * @param args.mimeType Overrides the type looked up from the extension, so the
+ * picker's own content-resolver answer can be preferred.
  * @returns The Recording with its durable audio path.
  * @throws If the move or sidecar write fails. A move failure may leave audio
  * in temporary storage; a sidecar failure leaves it at the destination.
@@ -112,13 +147,18 @@ export async function persistRecording(args: {
   recordedAt?: Date;
   /** True when capture ended with the app's termination; see CONTEXT.md. */
   interrupted?: boolean;
+  source?: RecordingSource;
+  title?: string;
+  extension?: string;
+  mimeType?: string;
 }): Promise<Recording> {
   const recordedAt = args.recordedAt ?? new Date();
   const timestamp = recordedAt.toISOString();
   const id = newRecordingId(recordedAt);
-  const extension = extensionOf(args.sourceUri);
+  const extension = args.extension ?? extensionOf(args.sourceUri);
   const fileName = `${id}.${extension}`;
-  const mimeType = MIME_TYPES[extension] ?? "application/octet-stream";
+  const mimeType =
+    args.mimeType ?? MIME_TYPES[extension] ?? "application/octet-stream";
 
   const directory = recordingsDirectory();
   const source = new File(args.sourceUri);
@@ -128,8 +168,8 @@ export async function persistRecording(args: {
 
   const sidecar: Sidecar = {
     id,
-    title: defaultRecordingTitle(recordedAt),
-    source: "recorded",
+    title: args.title ?? defaultRecordingTitle(recordedAt),
+    source: args.source ?? "recorded",
     fileName,
     mimeType,
     durationMs: args.durationMs,
