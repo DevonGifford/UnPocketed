@@ -1,9 +1,7 @@
 import { useCallback, useEffect } from "react";
-import {
-  setAudioModeAsync,
-  useAudioPlayer,
-  useAudioPlayerStatus,
-} from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+
+import { updateAudioMode } from "@/lib/audio-mode";
 
 /*
  * Playback (§16). Available for every recording whether or not it has been
@@ -57,8 +55,12 @@ export function usePlayback(
      * Request audio focus: the default is `mixWithOthers`, which on Android
      * asks for no focus at all, so music from another app would keep playing
      * over the recording. A voice recording is speech — it wants the stage.
+     *
+     * Goes through `updateAudioMode` rather than `setAudioModeAsync`, which
+     * would clear every field this call omits — including the background
+     * recording flag. See the note in `lib/audio-mode.ts`.
      */
-    void setAudioModeAsync({ interruptionMode: "doNotMix" });
+    void updateAudioMode({ interruptionMode: "doNotMix" });
   }, []);
 
   const reportedDurationMs = toMs(status.duration);
