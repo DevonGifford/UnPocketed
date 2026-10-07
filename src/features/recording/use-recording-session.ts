@@ -5,6 +5,8 @@ import {
   type RecordingStatus,
 } from "expo-audio";
 
+import { File } from "expo-file-system";
+
 import { applyAudioMode } from "@/lib/audio-mode";
 import { withTimeout, TimeoutError } from "@/lib/with-timeout";
 import type { Recording } from "@/types";
@@ -16,7 +18,7 @@ import {
 } from "./errors";
 import { ensureRecordingPermissions } from "./permissions";
 import { persistRecording } from "./storage";
-import { recoverOrphanedRecordings } from "./recovery";
+import { adoptOrphan, recoverOrphanedRecordings } from "./recovery";
 import { indexRecording } from "@/features/library";
 
 /**
@@ -235,14 +237,17 @@ export function useRecordingSessionState(): RecordingSession {
       if (status.hasError || !status.url) {
         /*
          * `MediaRecorder.onError` fires without a url and without resetting, so
-         * the partially written file is still in the capture directory. Adopt it
-         * now rather than making the user restart the app to see it — a move
-         * that fails because the recorder still holds the file is left for the
-         * next launch, which is what recovery does anyway.
+         * the partly written file is still in the capture directory. Adopt that
+         * one file rather than scanning the directory: a scan would also move
+         * anything else there, and this recorder has not released its own file
+         * yet. A move that fails is left for the next launch (§3.2).
          */
-        void recoverOrphanedRecordings().then((recovered) => {
-          recovered.forEach(indexRecording);
-        });
+        const interruptedUri = recorder.uri;
+        if (interruptedUri) {
+          void adoptOrphan(new File(interruptedUri)).then((adopted) => {
+            if (adopted) indexRecording(adopted);
+          });
+        }
 
         if (mounted.current) {
           setFailure(recordingFailure("recording-interrupted"));
@@ -258,10 +263,26 @@ export function useRecordingSessionState(): RecordingSession {
        */
       void fileRecording(status.url, tickedElapsedRef.current);
     },
-    [fileRecording],
+    // `recorder` rather than `recorder.uri`: the uri must be read when the
+    // event arrives, not captured when this callback was built.
+    [fileRecording, recorder],
   );
 
   const start = useCallback(async () => {
+    /*
+     * §14: refuse to start a second recording. `toggle` already guards a double
+     * press, but this catches state drift — if a stop event were ever missed,
+     * `status` would read "idle" while the recorder was still running, and
+     * preparing it again would lose the recording in progress.
+     *
+     * Checked before anything is cleared, so a drifted press neither flashes
+     * "preparing" nor wipes a failure message the user has not read yet.
+     */
+    if (recorder.getStatus().isRecording) {
+      if (mounted.current) setStatus("recording");
+      return;
+    }
+
     setFailure(null);
     setFinalElapsedMs(0);
     setTickedElapsedMs(0);
@@ -272,17 +293,6 @@ export function useRecordingSessionState(): RecordingSession {
     // Recovery moves files out of the capture directory, which is where this
     // recording is about to be created. Let it finish first.
     if (recovery.current) await recovery.current;
-
-    /*
-     * §14: refuse to start a second recording. `toggle` already guards a double
-     * press, but this catches state drift — if a stop event were ever missed,
-     * `status` would read "idle" while the recorder was still running, and
-     * preparing it again would lose the recording in progress.
-     */
-    if (recorder.getStatus().isRecording) {
-      if (mounted.current) setStatus("recording");
-      return;
-    }
 
     const permissionFailure = await ensureRecordingPermissions();
     if (permissionFailure) {

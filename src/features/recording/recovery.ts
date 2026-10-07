@@ -72,6 +72,44 @@ export function estimateDurationMs(
   return Math.round(((sizeBytes * 8) / bitsPerSecond) * 1000);
 }
 
+/** Bits per second measured from this device's own completed recordings. */
+function calibratedBitrate(): number {
+  return storedBitrate(
+    listPersistedRecordings(),
+    (recording) => new File(recording.audioPath).size,
+  );
+}
+
+/**
+ * Moves one orphaned file into the library, deciding whether it is Interrupted
+ * by probing for its index rather than assuming.
+ *
+ * @param file The file to adopt. Must not be one a recorder is still writing.
+ * @param bitsPerSecond Override for the estimate, so a batch calibrates once.
+ * @returns The adopted Recording, or null when it could not be moved — in which
+ * case the file is untouched and the next launch will try again (§3.2).
+ */
+export async function adoptOrphan(
+  file: File,
+  bitsPerSecond = calibratedBitrate(),
+): Promise<Recording | null> {
+  const playable = isPlayableMp4(file);
+
+  try {
+    return await persistRecording({
+      sourceUri: file.uri,
+      // A playable file keeps its real duration, which the player reports and
+      // PR4's backfill writes down on first open.
+      durationMs: playable ? 0 : estimateDurationMs(file.size, bitsPerSecond),
+      // When capture began, not when it was noticed.
+      recordedAt: new Date(file.creationTime ?? file.lastModified ?? Date.now()),
+      interrupted: !playable,
+    });
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Moves every recording left in the capture directory into the library.
  *
@@ -98,33 +136,14 @@ export async function recoverOrphanedRecordings(): Promise<Recording[]> {
 
   if (orphans.length === 0) return [];
 
-  const bitrate = storedBitrate(
-    listPersistedRecordings(),
-    (recording) => new File(recording.audioPath).size,
-  );
-
+  // Calibrated once for the batch: it reads and parses a sidecar per indexed
+  // recording, which is not worth repeating per orphan.
+  const bitrate = calibratedBitrate();
   const recovered: Recording[] = [];
 
   for (const file of orphans) {
-    const playable = isPlayableMp4(file);
-
-    try {
-      recovered.push(
-        await persistRecording({
-          sourceUri: file.uri,
-          // A playable file keeps its real duration, which the player reports
-          // and PR4's backfill writes down on first open.
-          durationMs: playable ? 0 : estimateDurationMs(file.size, bitrate),
-          // When capture began, not when it was noticed.
-          recordedAt: new Date(
-            file.creationTime ?? file.lastModified ?? Date.now(),
-          ),
-          interrupted: !playable,
-        }),
-      );
-    } catch {
-      // Left in place for the next launch to try again.
-    }
+    const adopted = await adoptOrphan(file, bitrate);
+    if (adopted) recovered.push(adopted);
   }
 
   return recovered;
