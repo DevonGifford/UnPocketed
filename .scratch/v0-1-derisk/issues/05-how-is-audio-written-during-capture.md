@@ -2,7 +2,6 @@
 
 Type: grilling
 Status: open
-Blocked by: 04
 Map: [De-risk v0.1](../map.md)
 
 ## Question
@@ -20,4 +19,14 @@ Decide:
 3. **What does PR5's "state restoration" actually promise?** It cannot mean auto-resume — Android forbids starting a `microphone` foreground service from the background. So it means recover-and-finalise. What does the user see on next launch: a recovered recording, a warning, a choice?
 4. **Who owns a stop that JS never saw?** The foreground-service notification's Stop button calls native `stopRecording()` directly, bypassing JS. §11 and §14 must reconcile state on next foreground rather than assume JS witnessed every stop.
 
-**Blocked for a reason:** resolve [Which provider ships first?](04-which-provider-ships-first.md) first. If a 25 MB provider ships, upload slicing is already required, and segmented capture could serve both recovery *and* slicing with one mechanism — which changes the answer to question 1. Deciding the write strategy before knowing that risks building two segmentation schemes, or the wrong one.
+**Unblocked 2026-10-07**, and question 1 is now easier than when this was written.
+[Which provider ships first?](04-which-provider-ships-first.md) resolved to **AssemblyAI at PR7
+and Deepgram at PR8 — both chunk-free at a two-hour recording**, so upload slicing is not required
+anywhere in v0.1. The reason to consider segments was that one mechanism might serve both recovery
+*and* slicing; **that second purpose is gone**. Segmentation now has to justify itself on
+crash-recovery grounds alone, against a single growing file that matches §24's "unchanged original
+file where technically possible" export promise and §3.2's assumption that a recording is one
+thing. The bar for segments is therefore higher than this ticket originally assumed.
+
+Questions 2, 3 and 4 are unchanged and still need answering — in particular question 4, which is a
+correctness problem in PR5 regardless of which way question 1 goes.
