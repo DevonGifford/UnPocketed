@@ -5,6 +5,7 @@ import { AppHeader } from "@/components/app-header";
 import { HudFrame } from "@/components/hud-frame";
 import { Text } from "@/components/ui/text";
 import { mockRecordings } from "@/mocks/recordings";
+import { useLibrary } from "@/features/library";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 
 function HeroAction({
@@ -86,9 +87,11 @@ function Tile({
 /** Home is a launcher; the full Library lives on Recordings (§29). */
 export function HomeScreen() {
   const router = useRouter();
-  const recent = [...mockRecordings]
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-    .slice(0, 2);
+  const { recordings } = useLibrary();
+  const recent = recordings.slice(0, 2);
+  // Transcripts are PR7, so this still counts fixtures — deliberately, so the
+  // tile agrees with the Transcripts screen, which is also still mocked. Both
+  // stop reading mocks together.
   const transcriptCount = mockRecordings.reduce(
     (total, recording) => total + recording.transcripts.length,
     0,
@@ -119,7 +122,9 @@ export function HomeScreen() {
           <Tile
             glyph="▤"
             title="Recordings"
-            detail={`${mockRecordings.length} recordings`}
+            detail={
+              recordings.length === 1 ? "1 recording" : `${recordings.length} recordings`
+            }
             onPress={() => router.push("/recordings")}
           />
           <Tile

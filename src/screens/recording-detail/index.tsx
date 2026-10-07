@@ -3,7 +3,8 @@ import { Pressable, ScrollView, View } from "react-native";
 import { Screen } from "@/components/screen";
 import { Text } from "@/components/ui/text";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
-import { findMockRecording } from "@/mocks/recordings";
+import { useRecording } from "@/features/library";
+import type { TranscriptionState, Transcript } from "@/types";
 
 /** A tappable text action. Destructive actions are never the easiest tap (§25). */
 function Action({
@@ -33,10 +34,21 @@ function Action({
 }
 
 export function RecordingDetailScreen({ id }: { id: string }) {
-  const recording = findMockRecording(id);
+  const { recording } = useRecording(id);
   const [selectedTranscriptId, setSelectedTranscriptId] = useState<string | null>(
-    recording?.transcripts[0]?.id ?? null,
+    null,
   );
+
+  /*
+   * A Recording owns zero or more Transcripts (§10), but nothing produces one
+   * until PR7 — there is no provider and no API key yet. The interface below is
+   * built against the real shape and reads empty, rather than showing text no
+   * model generated (§3.7).
+   */
+  const transcripts: Transcript[] = [];
+  // Widened deliberately: §21's other states are rendered below and PR7 will
+  // supply them, so narrowing to the literal would delete working interface.
+  const transcriptionState = "not-transcribed" as TranscriptionState;
 
   if (!recording) {
     return (
@@ -47,7 +59,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   }
 
   const selected =
-    recording.transcripts.find((t) => t.id === selectedTranscriptId) ?? null;
+    transcripts.find((t) => t.id === selectedTranscriptId) ?? null;
 
   return (
     <Screen>
@@ -93,12 +105,12 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           <Text variant="headline">Transcripts</Text>
         </View>
 
-        {recording.transcripts.length === 0 ? (
+        {transcripts.length === 0 ? (
           <View className="gap-3 px-4 py-6">
             <Text variant="subhead">
-              {recording.transcriptionState === "transcribing"
+              {transcriptionState === "transcribing"
                 ? "Transcribing…"
-                : recording.transcriptionState === "failed"
+                : transcriptionState === "failed"
                   ? "The last attempt failed. Your recording is safe on this device."
                   : "This recording has not been transcribed yet."}
             </Text>
@@ -106,7 +118,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
               <View className="rounded-md border border-border">
                 <Action
                   label={
-                    recording.transcriptionState === "failed"
+                    transcriptionState === "failed"
                       ? "Try again"
                       : "Transcribe"
                   }
@@ -117,7 +129,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
         ) : (
           <>
             <View className="flex-row gap-2 px-4 py-3">
-              {recording.transcripts.map((t) => {
+              {transcripts.map((t) => {
                 const isSelected = t.id === selectedTranscriptId;
                 return (
                   <Pressable

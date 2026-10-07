@@ -11,6 +11,7 @@ import type { Recording } from "@/types";
 import { recordingFailure, type RecordingFailure } from "./errors";
 import { ensureRecordingPermissions } from "./permissions";
 import { persistRecording } from "./storage";
+import { indexRecording } from "@/features/library";
 
 /**
  * The real recording session (§11), replacing PR1's mocked one.
@@ -141,6 +142,10 @@ export function useRecordingSession(): RecordingSession {
 
     try {
       const saved = await persistRecording({ sourceUri, durationMs });
+      // Index straight away so the library shows it without a rescan. The
+      // sidecar is already written, so this failing costs the row, not the
+      // recording.
+      indexRecording(saved);
       if (mounted.current) {
         setLastSaved(saved);
         setFinalElapsedMs(0);

@@ -1,7 +1,12 @@
 /**
- * PR1 fixtures. Mock data only — PR4 replaces this with SQLite-backed queries.
- * The shapes are the real domain types so screens written against them survive
- * the swap. Deliberately covers every §21 transcription state.
+ * PR1 fixtures. The shapes are the real domain types so screens written against
+ * them survive the swap. Deliberately covers every §21 transcription state.
+ *
+ * PR4 moved the recording screens onto the index; what still reads from here is
+ * transcript-shaped — the Transcripts list, transcript detail, and Home's
+ * transcript count — because nothing produces a Transcript until PR7. Home's
+ * count stays mocked on purpose, so it agrees with the Transcripts screen
+ * rather than reading zero beside a list of four. PR7 removes all three.
  */
 import type { Recording, Transcript, TranscriptionState } from "@/types";
 

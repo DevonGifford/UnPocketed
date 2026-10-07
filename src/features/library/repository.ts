@@ -2,6 +2,7 @@ import {
   forgetRecordings,
   getRecording,
   listRecordings,
+  upsertRecording,
   upsertRecordings,
 } from "@/db/recordings";
 import { listPersistedRecordings } from "@/features/recording/storage";
@@ -34,6 +35,21 @@ export function reconcileLibrary(): { indexed: number; forgotten: number } {
     return { indexed: plan.index.length, forgotten: plan.forget.length };
   } catch {
     return { indexed: 0, forgotten: 0 };
+  }
+}
+
+/**
+ * Indexes a recording the app has just written, so it appears without waiting
+ * for a rescan. The sidecar is already on disk by this point, so a failure here
+ * costs the row until the next reconcile, never the recording.
+ *
+ * @throws Never.
+ */
+export function indexRecording(recording: Recording): void {
+  try {
+    upsertRecording(recording);
+  } catch {
+    // The next reconcile picks it up from its sidecar.
   }
 }
 
