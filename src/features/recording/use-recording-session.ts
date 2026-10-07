@@ -233,8 +233,19 @@ export function useRecordingSessionState(): RecordingSession {
       if (stoppingFromJs.current) return;
 
       if (status.hasError || !status.url) {
+        /*
+         * `MediaRecorder.onError` fires without a url and without resetting, so
+         * the partially written file is still in the capture directory. Adopt it
+         * now rather than making the user restart the app to see it — a move
+         * that fails because the recorder still holds the file is left for the
+         * next launch, which is what recovery does anyway.
+         */
+        void recoverOrphanedRecordings().then((recovered) => {
+          recovered.forEach(indexRecording);
+        });
+
         if (mounted.current) {
-          setFailure(recordingFailure("finalise-failed"));
+          setFailure(recordingFailure("recording-interrupted"));
           setStatus("idle");
         }
         return;
@@ -261,6 +272,17 @@ export function useRecordingSessionState(): RecordingSession {
     // Recovery moves files out of the capture directory, which is where this
     // recording is about to be created. Let it finish first.
     if (recovery.current) await recovery.current;
+
+    /*
+     * §14: refuse to start a second recording. `toggle` already guards a double
+     * press, but this catches state drift — if a stop event were ever missed,
+     * `status` would read "idle" while the recorder was still running, and
+     * preparing it again would lose the recording in progress.
+     */
+    if (recorder.getStatus().isRecording) {
+      if (mounted.current) setStatus("recording");
+      return;
+    }
 
     const permissionFailure = await ensureRecordingPermissions();
     if (permissionFailure) {
