@@ -200,7 +200,23 @@ export function createGemini(apiKey: string): EnrichmentProvider {
       { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite" },
       { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash-Lite" },
     ],
-    defaultModelId: "gemini-3.8-flash",
+    /*
+     * A Lite model by default, which inverts the rule used for Anthropic — and
+     * on evidence rather than preference.
+     *
+     * There the argument was that the price spread is negligible against the
+     * transcription already paid for, so the default should be the best answer.
+     * Here the binding constraint is not price but **availability**: on a free
+     * key, `gemini-3.8-flash` and `gemini-3.7-flash` both returned `503` under
+     * load repeatedly, while both Lite models answered first time. A model the
+     * user cannot reach has no quality at all.
+     *
+     * It is also the better fit on the merits. Google tunes Lite for
+     * extraction and categorisation, which is what writing a brief is, and the
+     * briefs it produced were as good as the flagship's on the same material.
+     * Anyone who wants the flagship can pick it; it is listed first.
+     */
+    defaultModelId: "gemini-3.5-flash-lite",
     keyUrl: "https://aistudio.google.com/apikey",
     /*
      * The only notice in this app that states a condition rather than a fact,

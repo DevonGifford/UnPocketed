@@ -103,6 +103,10 @@ export const BRIEF_SCHEMA = {
  *   permission to omit, a model returned a title and nothing else. The rule now
  *   names what is always producible from words on a page and what genuinely is
  *   not, instead of leaving the model to decide the whole thing is beyond it.
+ * - **No speaker numbers in the prose.** Reading real output showed briefs
+ *   written as "Speaker 2 welcomes returning guest Nightwolf Hawk" — half
+ *   named, half labelled, and meaningless away from the transcript the number
+ *   came from. A brief is read on its own.
  * - **Do not reassign speakers.** The recogniser's diarization decided who
  *   spoke. An LLM reading flat text can only guess at boundaries, and a
  *   confident guess is worse than no answer (§10).
@@ -119,6 +123,7 @@ export const BRIEF_SYSTEM_PROMPT = [
   "- Beyond that, write only what the transcript supports. Do not pad a field with something vague or generic to fill it. An honest short answer beats an invented long one.",
   "- Speaker numbers were assigned by a speech recognition system that separated the voices. Never reassign speech to a different speaker, and never introduce a speaker that is not in the transcript.",
   "- Name a speaker only where the transcript states or clearly implies their name. If no name is evident, leave that speaker unnamed.",
+  "- In the brief's own prose, refer to people by name where you have one, and otherwise by what they are doing \u2014 the host, the interviewer, the second voice. Do not write \"Speaker 2\" in a sentence: the brief is read on its own, where a speaker number means nothing.",
   "- Describe the recording. Do not give the reader advice, and do not comment on the recording's quality.",
   "- Write in the same language as the transcript.",
   "- Be concrete. Prefer what was actually said over characterising it.",

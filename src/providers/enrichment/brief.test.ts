@@ -121,6 +121,15 @@ describe("BRIEF_SYSTEM_PROMPT", () => {
     expect(BRIEF_SYSTEM_PROMPT).toContain("Omit a conclusion");
   });
 
+  /*
+   * From reading real output: briefs came back written as "Speaker 2 welcomes
+   * returning guest Nightwolf Hawk" — half named, half labelled, and
+   * meaningless away from the transcript the number came from.
+   */
+  it("forbids speaker numbers in the brief's own prose", () => {
+    expect(BRIEF_SYSTEM_PROMPT).toContain('Do not write "Speaker 2" in a sentence');
+  });
+
   it("still forbids padding", () => {
     expect(BRIEF_SYSTEM_PROMPT).toContain("Do not pad");
   });
