@@ -83,3 +83,57 @@ export async function resolveSelectedProvider(): Promise<{
 
   return { provider, modelId: selection.modelId };
 }
+
+/**
+ * One thing the user can transcribe with: a Provider and one of its Models.
+ *
+ * Flattened on purpose. §22 asks the user to "select the same recording and
+ * submit it to another model", and that is one decision, not two — making them
+ * pick a Provider and then a Model to retranscribe turns a comparison into a
+ * chore and hides the fact that a Model belongs to a Provider.
+ */
+export interface TranscriptionTarget {
+  providerId: string;
+  providerName: string;
+  modelId: string;
+  modelName: string;
+  /**
+   * Whether this could run right now.
+   *
+   * False only when the Provider needs an API key and none is stored. Offered
+   * anyway rather than hidden: a user who has not set up Deepgram should still
+   * be able to see that Deepgram exists, and §19 tells them where the key goes.
+   */
+  ready: boolean;
+}
+
+/**
+ * Every Provider and Model combination, for the retranscribe picker (§22).
+ *
+ * Reads each Provider's key once rather than once per Model, since a Provider
+ * with four Models would otherwise hit the keystore four times for one answer.
+ *
+ * @returns One entry per Model per Provider, in registration order.
+ * @throws Never.
+ */
+export async function listTranscriptionTargets(): Promise<TranscriptionTarget[]> {
+  const targets: TranscriptionTarget[] = [];
+
+  for (const provider of listProviders()) {
+    const ready = provider.requiresApiKey
+      ? (await readApiKey(provider.id)) !== null
+      : true;
+
+    for (const model of provider.models) {
+      targets.push({
+        providerId: provider.id,
+        providerName: provider.name,
+        modelId: model.id,
+        modelName: model.name,
+        ready,
+      });
+    }
+  }
+
+  return targets;
+}

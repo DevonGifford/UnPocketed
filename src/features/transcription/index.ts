@@ -17,8 +17,10 @@ export {
 export {
   currentProviderDescriptor,
   currentSelection,
+  listTranscriptionTargets,
   resolveProvider,
   resolveSelectedProvider,
+  type TranscriptionTarget,
 } from "./provider";
 export {
   allJobs,
