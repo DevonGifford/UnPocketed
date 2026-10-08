@@ -22,10 +22,10 @@
   --color-muted: hsl(200 30% 93%);
   --color-muted-foreground: hsl(204 25% 42%);
   --color-accent: hsl(200 30% 93%);
-  --color-accent-foreground: hsl(192 80% 32%);
+  --color-accent-foreground: hsl(192 80% 31%);
   --color-destructive: hsl(349 75% 45%);
   --color-border: hsl(204 30% 84%);
-  --color-input: hsl(204 30% 84%);
+  --color-input: hsl(204 30% 55%);
   --color-ring: hsl(192 80% 32%);
   --color-record: hsl(349 80% 48%);
   --color-record-foreground: hsl(0 0% 100%);
@@ -52,10 +52,10 @@
       --color-muted: hsl(200 30% 93%);
       --color-muted-foreground: hsl(204 25% 42%);
       --color-accent: hsl(200 30% 93%);
-      --color-accent-foreground: hsl(192 80% 32%);
+      --color-accent-foreground: hsl(192 80% 31%);
       --color-destructive: hsl(349 75% 45%);
       --color-border: hsl(204 30% 84%);
-      --color-input: hsl(204 30% 84%);
+      --color-input: hsl(204 30% 55%);
       --color-ring: hsl(192 80% 32%);
       --color-record: hsl(349 80% 48%);
       --color-record-foreground: hsl(0 0% 100%);
@@ -76,7 +76,7 @@
       --color-accent-foreground: hsl(192 74% 59%);
       --color-destructive: hsl(349 96% 61%);
       --color-border: hsl(204 47% 25%);
-      --color-input: hsl(204 47% 25%);
+      --color-input: hsl(204 47% 37%);
       --color-ring: hsl(192 74% 59%);
       --color-record: hsl(349 96% 61%);
       --color-record-foreground: hsl(0 0% 100%);
