@@ -55,12 +55,22 @@ A Transcript produced by changing another one's text rather than by transcribing
 _Avoid_: version, revision, copy, fork, child
 
 **Brief**:
-The structured reading of a Transcript an LLM produces: title, sub-headline, executive summary, overview and conclusion. Owned by a Transcript, attributed to its own Provider and Model, and never a replacement for the Transcript it describes. Every field is optional — an absent conclusion means the model produced none, and the interface shows nothing rather than a heading over filler.
+The structured reading of a Transcript an LLM produces: title, sub-headline, executive summary, overview and conclusion, and optionally a name for each Speaker. Owned by a Transcript, attributed to its own Provider and Model, and never a replacement for the Transcript it describes. Every field is optional — an absent conclusion means the model produced none, and the interface shows nothing rather than a heading over filler.
+
+Identified by its Transcript **and** the Model that wrote it, so re-running one model replaces its Brief while running another adds one beside it. Regenerating and comparing are therefore the same action with different inputs.
+
+Unlike a Transcript, a Brief is **regenerable** — its input is text already on the device, so losing one costs a request rather than another upload. That is why Enrichment is on demand, why a poor Brief is re-rolled rather than edited, and why none of it had to ship before the Transcript work.
 _Avoid_: summary (that is one field inside it), analysis, insights, notes, AI summary
 
 **Enrichment**:
-The act of producing a Brief, and of cleaning up a Transcript, from a Transcript's text. Distinct from Transcription in every way that matters: it reads text rather than audio, answers to different Providers, and can be repeated at any time because its input is already on the device.
+The act of producing a Brief, or a corrected Transcript, from a Transcript's text. Distinct from Transcription in every way that matters: it reads text rather than audio, answers to different Providers, and can be repeated at any time because its input is already on the device.
+
+Its two outputs are different kinds of thing. A Brief is a new entity describing the Transcript. A **correction** is not — it is a Derived Transcript like any other edit, authored by a Model instead of the user, because an LLM fixing a mishearing and a person fixing a typo are the same operation by different hands.
 _Avoid_: processing, post-processing, polishing, AI pass
+
+**Correction**:
+A Derived Transcript produced by a Model fixing what the recogniser misheard. Changes words only: Speakers and timings are carried over untouched, because an LLM reading text cannot hear who spoke. Never replaces the Transcript it came from.
+_Avoid_: cleanup (that is the act), fix, improvement, enhancement, rewrite
 
 **Provider**:
 A service that performs Transcription — speech to text, and nothing else. Chosen by the user, and paid for directly by them where it is a remote one. Reached through an adapter, so the rest of the application stays ignorant of which one is in use.

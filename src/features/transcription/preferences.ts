@@ -1,5 +1,10 @@
 import { File, Paths } from "expo-file-system";
 
+import {
+  resolveChoice,
+  type ResolvedChoice,
+  type StoredChoice,
+} from "@/lib/provider-choice";
 import { DEFAULT_PROVIDER_ID, type ProviderDescriptor } from "@/providers/transcription";
 
 /*
@@ -23,7 +28,7 @@ import { DEFAULT_PROVIDER_ID, type ProviderDescriptor } from "@/providers/transc
 
 const FILE_NAME = "transcription-settings.json";
 
-export interface TranscriptionPreferences {
+export interface TranscriptionPreferences extends StoredChoice {
   /**
    * The chosen Provider, or null when the user has never chosen one.
    *
@@ -57,10 +62,7 @@ export interface TranscriptionPreferences {
 }
 
 /** The effective Provider and Model, after the stored choice is validated. */
-export interface TranscriptionSelection {
-  providerId: string;
-  modelId: string;
-}
+export type TranscriptionSelection = ResolvedChoice;
 
 const EMPTY: TranscriptionPreferences = {
   providerId: null,
@@ -201,41 +203,15 @@ export function chooseDiarize(diarize: boolean): void {
 /**
  * Resolves stored preferences against the Providers that actually exist.
  *
- * Pure, and separated from the file IO above so it can be tested without a
- * filesystem — the validation is the part with the interesting failure modes.
- *
- * Both halves fall back rather than failing, and for the same reason: a stored
- * id that no longer exists is not the user's mistake. A Provider can be removed
- * between app versions, and a Provider's Model list can change under it —
- * AssemblyAI's did exactly that during PR7, when `universal-3-5-pro` appeared.
- * A stale stored id sent to the API comes back as an opaque 4xx forever, with
- * nothing on screen to explain it, so it is corrected here instead.
- *
- * @param providers Every Provider in the registry.
- * @returns The Provider and Model to use, or null when the registry is empty.
+ * Delegates to `lib/provider-choice`, which enrichment uses too — the stored
+ * shape and the fallback rules are identical, and the open question about
+ * falling back silently is recorded there once rather than in two places.
  */
 export function effectiveSelection(
   preferences: TranscriptionPreferences,
   providers: ProviderDescriptor[],
 ): TranscriptionSelection | null {
-  // TODO: If a chosen Provider is no longer available, ask the user to choose
-  // again instead of silently switching to the default billing account.
-  // Decided 2026-10-08 (Devon), not yet built: report no selection, and let
-  // Transcribe fail pointing at Settings, rather than falling back and saying
-  // so afterwards. The same answer covers the unreadable-file case above.
-  const provider =
-    providers.find((candidate) => candidate.id === preferences.providerId) ??
-    providers.find((candidate) => candidate.id === DEFAULT_PROVIDER_ID) ??
-    providers[0];
-
-  if (!provider) return null;
-
-  const stored = preferences.modelByProvider[provider.id];
-  const modelId = provider.models.some((model) => model.id === stored)
-    ? stored
-    : provider.defaultModelId;
-
-  return { providerId: provider.id, modelId };
+  return resolveChoice(preferences, providers, DEFAULT_PROVIDER_ID);
 }
 
 /** Forgets the cached read. For tests, and for a settings reset later. */

@@ -128,6 +128,43 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 6,
+    up: (db) => {
+      /*
+       * Briefs index their sidecars, exactly as transcripts index theirs.
+       *
+       * Deliberately **no** `REFERENCES transcripts(id) ON DELETE CASCADE`, for
+       * the same reason migration 3 gave: `reconcileTranscripts` drops rows for
+       * files it cannot currently see, and a cascade would turn a transient
+       * index repair into the silent destruction of records the user paid for.
+       * §25 removes a Brief with its Transcript only on an explicit request,
+       * which is a different code path.
+       *
+       * `speaker_names` is JSON for the same reason `segments` is: it is read
+       * and written whole, nothing queries one speaker, and a table would add a
+       * join to answer a question nobody asks.
+       */
+      db.execSync(`
+        CREATE TABLE briefs (
+          id            TEXT PRIMARY KEY NOT NULL,
+          transcript_id TEXT NOT NULL,
+          provider_id   TEXT NOT NULL,
+          model_id      TEXT NOT NULL,
+          title         TEXT,
+          headline      TEXT,
+          summary       TEXT,
+          overview      TEXT,
+          conclusion    TEXT,
+          speaker_names TEXT,
+          created_at    TEXT NOT NULL,
+          updated_at    TEXT NOT NULL
+        );
+        CREATE INDEX briefs_transcript
+          ON briefs (transcript_id, created_at DESC);
+      `);
+    },
+  },
 ];
 
 /** The version a fully migrated database reports. */

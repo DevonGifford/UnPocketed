@@ -41,8 +41,10 @@ export {
   editableTurnsFor,
   editedTranscript,
   isProviderOutput,
+  transcriptLabel,
   turnsChanged,
   type EditableTurn,
+  type EditAuthor,
 } from "./editing";
 export { readingViewFor, segmentsCoverText, type ReadingView } from "./reading";
 export {

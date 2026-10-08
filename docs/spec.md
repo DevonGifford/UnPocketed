@@ -412,10 +412,27 @@ interface Brief {
   overview?: string;
   conclusion?: string;
 
+  /**
+   * A name for a speaker, keyed by the index the **recogniser** assigned.
+   * The LLM may name a voice diarization already separated; it must never
+   * decide who spoke which words.
+   */
+  speakerNames?: Record<number, string>;
+
   createdAt: string;
   updatedAt: string;
 }
 ```
+
+A Brief's identity is derived from its transcript **and the model that wrote
+it**. Re-running one model replaces that model's Brief; running a different one
+produces a second alongside it. So regenerating and comparing are the same
+gesture with different inputs, and §22's comparison works one layer down
+without a second mechanism.
+
+Deleting a Transcript deletes its Briefs. That is the only cascade in the
+enrichment layer, and it runs from an explicit deletion only — never from an
+index repair, for the reason §10's no-`ON DELETE CASCADE` rule already gives.
 
 `source` is not a boolean. An LLM correcting a mishearing and a user fixing a typo are the
 same operation performed by different authors, so one field answers for both and §20 stays
@@ -1443,7 +1460,7 @@ log, the decision map and this document.
 Deliver:
 
 - an enrichment provider abstraction, separate from the transcription one;
-- the first LLM provider, plus a second to prove the abstraction;
+- Anthropic first, Gemini second; an OpenAI-compatible endpoint third, which **slipped**;
 - Briefs: title, sub-headline, summary, overview, conclusion;
 - LLM cleanup, producing a derived transcript rather than overwriting one;
 - Brief display on the transcript screen;
@@ -1454,6 +1471,12 @@ Exit condition:
 > The same transcript can be enriched by two different LLM providers, both Briefs kept, and
 > the original transcript is byte-for-byte unchanged by either.
 
+**Met in part.** Both providers are built and the second exists precisely to keep the
+abstraction honest — but only Gemini was run, by deliberate choice, with Anthropic left for
+private testing. The half of the exit condition that was exercised held: Briefs from three
+Gemini models coexist on one transcript and none of them altered it. The half that was not is
+recorded rather than implied, in the registry's own header.
+
 Three constraints this PR must not break. Enrichment is **on demand**: it spends the user's
 own money and its result is regenerable at any time, so nothing runs unasked. The recogniser's
 transcript is **never overwritten** — an LLM's cleanup is a derived transcript beside it.
@@ -1461,8 +1484,18 @@ And speaker turns come from the recogniser's diarization: an LLM may reformat or
 but must never be the authority for deciding **who spoke**, because inferring that from flat
 text means inventing boundaries.
 
-The provider question — which LLM providers ship first, and on what evidence — is this PR's
-own research, as the transcription provider choice was for PR7.
+The provider question was researched on 2026-10-08. Cost does not decide it: enriching an
+hour-long transcript costs between $0.0009 and $0.078 depending on the model, against
+$0.17-$0.26 to transcribe that same hour, so the most expensive option is less than half the
+cheapest transcription. **Data usage decides it.** Anthropic and OpenAI do not train on API
+data by default, and neither does Gemini's paid tier — but Gemini's **free** tier states that
+content is used to improve Google's products.
+
+The free tier still ships, because a free option is worth having and the choice is the
+user's. It carries a disclosure that cannot say what the other providers' can: Gemini's tier
+follows the Google Cloud project's billing status rather than the API key, and no API reports
+it, so Unpocketed **cannot tell** which tier a key is on. That notice states a condition and
+says the app cannot resolve it, rather than stating a fact it does not have.
 
 ---
 

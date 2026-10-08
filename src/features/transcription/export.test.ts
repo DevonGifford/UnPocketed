@@ -177,6 +177,84 @@ describe("transcriptAsMarkdown", () => {
   });
 });
 
+describe("briefs in exports", () => {
+  const brief = (overrides = {}) => ({
+    id: "brf-1",
+    transcriptId: "txn-job-abc",
+    providerId: "gemini",
+    modelId: "gemini-3.5-flash-lite",
+    title: "Energy belt interview",
+    summary: "A host interviews a returning guest.",
+    createdAt: "2026-10-08T15:00:00.000Z",
+    updatedAt: "2026-10-08T15:00:00.000Z",
+    ...overrides,
+  });
+
+  /*
+   * Additive by default. A transcript nobody has enriched must export exactly
+   * the file it did before briefs existed — no empty heading, nothing to
+   * explain (§3.7, in a file rather than on a screen).
+   */
+  it("changes nothing for a transcript with no briefs", () => {
+    expect(transcriptAsMarkdown(transcript(), recording())).toBe(
+      transcriptAsMarkdown(transcript(), recording(), []),
+    );
+    expect(transcriptAsMarkdown(transcript(), recording())).not.toContain("Brief");
+  });
+
+  it("writes a brief above the transcript, naming the model", () => {
+    const md = transcriptAsMarkdown(transcript(), recording(), [brief()]);
+    expect(md).toContain("## Brief — gemini gemini-3.5-flash-lite");
+    expect(md.indexOf("## Brief")).toBeLessThan(md.indexOf("## Transcript"));
+  });
+
+  it("omits a section the model did not produce", () => {
+    const md = transcriptAsMarkdown(transcript(), recording(), [brief()]);
+    expect(md).toContain("### Summary");
+    expect(md).not.toContain("### Conclusion");
+  });
+
+  it("writes several briefs so two models can be compared", () => {
+    const md = transcriptAsMarkdown(transcript(), recording(), [
+      brief(),
+      brief({ id: "brf-2", modelId: "gemini-3.8-flash" }),
+    ]);
+    expect(md.match(/## Brief/g)).toHaveLength(2);
+  });
+
+  /*
+   * Whoever opens this file later has no other way to know a name was a
+   * model's inference rather than voice recognition.
+   */
+  it("says a speaker name was inferred, not recognised", () => {
+    const md = transcriptAsMarkdown(transcript(), recording(), [
+      brief({ speakerNames: { 0: "Sam" } }),
+    ]);
+    expect(md).toContain("- Speaker 1: Sam");
+    expect(md).toContain("inferred by gemini");
+  });
+
+  it("carries briefs whole in JSON, so an export round-trips", () => {
+    const briefs = [brief()];
+    const parsed = JSON.parse(
+      transcriptAsJson(transcript(), recording(), EXPORTED_AT, briefs),
+    );
+    expect(parsed.briefs).toEqual(briefs);
+  });
+
+  /*
+   * §3.4 calls plain text suitable for copy/paste. Pasting a transcript into a
+   * message should paste what was said, not a model's summary of it.
+   */
+  it("never puts a brief in plain text", () => {
+    const file = exportTranscript(transcript(), recording(), "txt", EXPORTED_AT, [
+      brief(),
+    ]);
+    expect(file.content).not.toContain("Energy belt interview");
+    expect(file.content).toBe(transcriptAsText(transcript()));
+  });
+});
+
 describe("transcriptAsJson", () => {
   it("round-trips the transcript whole", () => {
     const original = diarized();

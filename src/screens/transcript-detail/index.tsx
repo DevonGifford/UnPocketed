@@ -17,6 +17,9 @@ import {
   type ShareOutcome,
 } from "@/features/transcription";
 import { ExportPicker } from "@/components/export-picker";
+import { BriefView } from "@/components/brief-view";
+import { BusyIndicator } from "@/components/busy-indicator";
+import { useTranscriptEnrichment } from "@/features/enrichment";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 
 /**
@@ -34,6 +37,29 @@ import { formatDuration, formatRecordedAt } from "@/lib/format";
 export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string }) {
   const router = useRouter();
   const { transcript } = useTranscript(transcriptId);
+  /*
+   * Called before the early return below, and so unconditionally: the hook
+   * takes a null transcript until one is read.
+   */
+  const {
+    briefs,
+    busy: enrichmentBusy,
+    failure: briefFailure,
+    enrich,
+    cleanup,
+    canClean,
+    cleanFoundNothing,
+    dismissFailure: dismissBriefFailure,
+  } = useTranscriptEnrichment(transcript, {
+    /*
+     * The corrected text is a *different* Transcript, so going to it is the
+     * only way the user sees what they asked for. `replace` rather than
+     * `push`: the original is one tap away on the recording, and leaving it on
+     * the stack would make Back walk through a version they have moved past.
+     */
+    onCleaned: (cleaned) => router.replace(`/transcripts/${cleaned.id}`),
+  });
+
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [failure, setFailure] = useState<ShareOutcome | null>(null);
@@ -92,6 +118,75 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
             {speakers ? ` · ${speakers}` : ""}
           </Text>
         </HudFrame>
+
+        {/*
+          Briefs sit **above** the transcript and never in place of it (§23).
+          The reader must always be able to reach what the recogniser actually
+          returned, however good the summary above it looks.
+        */}
+        {enrichmentBusy ? <BusyIndicator label="Asking the model…" /> : null}
+
+        {/*
+          A correction pass that found nothing is a real answer, and the only
+          one with nowhere to be stored — nothing changed, so no record was
+          written. Saying it here is the only way the user learns the model
+          read the transcript and agreed with it.
+        */}
+        {cleanFoundNothing ? (
+          <View className="gap-1 rounded-md border border-border bg-card p-4">
+            <Text variant="headline">Nothing to correct</Text>
+            <Text variant="body">
+              The model read the transcript and found no mistakes worth fixing,
+              so nothing was changed or stored.
+            </Text>
+            <View className="flex-row">
+              <Pressable
+                onPress={dismissBriefFailure}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+              >
+                <Text variant="body">Dismiss</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
+        {briefFailure ? (
+          <View className="gap-2 rounded-md border border-border bg-card p-4">
+            <Text variant="headline">{briefFailure.title}</Text>
+            <Text variant="body">{briefFailure.detail}</Text>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={dismissBriefFailure}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+              >
+                <Text variant="body">Dismiss</Text>
+              </Pressable>
+              {briefFailure.retryable && !enrichmentBusy ? (
+                <Pressable
+                  onPress={enrich}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again"
+                  className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+                >
+                  <Text variant="body">Try again</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        {/*
+          Several Briefs means several models over one transcript — §22's
+          comparison, a layer down. Each says which model wrote it, so they can
+          be told apart rather than blurring into one opinion.
+        */}
+        {briefs.map((brief) => (
+          <BriefView key={brief.id} brief={brief} />
+        ))}
 
         <View className="gap-2 rounded-md border border-border p-4">
           <Text variant="body" className="text-primary">
@@ -154,6 +249,48 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
           >
             <Text variant="body">Export</Text>
           </Pressable>
+
+          {/*
+            On demand, never automatic. It spends the user's own money, and a
+            Brief is regenerable from text already here — so there is nothing
+            to gain by running it unasked and a bill to pay for doing so.
+            Re-running the same model replaces its Brief; a different model adds
+            one beside it, which is what makes two comparable.
+          */}
+          {/*
+            Offered only where the chosen provider implements it — `cleanup` is
+            optional on the interface, as `resume` is for transcription — and
+            only on the recogniser's own transcript. Correcting a correction
+            would be asking a model to second-guess itself, and correcting the
+            user's edit would put a model's words over a person's.
+          */}
+          {canClean && isProviderOutput(transcript) ? (
+            <Pressable
+              onPress={enrichmentBusy ? undefined : cleanup}
+              accessibilityRole="button"
+              accessibilityLabel="Correct the wording with AI"
+              className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+            >
+              <Text variant="body">Correct wording</Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            onPress={enrichmentBusy ? undefined : enrich}
+            accessibilityRole="button"
+            accessibilityLabel={
+              briefs.length > 0 ? "Write another brief" : "Write a brief"
+            }
+            className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+          >
+            <Text variant="body">
+              {enrichmentBusy
+                ? "Writing…"
+                : briefs.length > 0
+                  ? "Another brief"
+                  : "Write a brief"}
+            </Text>
+          </Pressable>
         </View>
 
         {/*
@@ -175,7 +312,9 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
         onSelect={(format: ExportFormat) => {
           setExporting(false);
           setFailure(null);
-          void shareTranscript(transcript, recording ?? null, format).then(
+          // The briefs already on screen go into the file, so an export is
+          // what the user is looking at rather than a subset of it.
+          void shareTranscript(transcript, recording ?? null, format, briefs).then(
             (outcome) => setFailure(outcome.status === "failed" ? outcome : null),
           );
         }}

@@ -1,7 +1,7 @@
 import { File, Paths } from "expo-file-system";
 import { isAvailableAsync, shareAsync } from "expo-sharing";
 
-import type { Recording, Transcript } from "@/types";
+import type { Brief, Recording, Transcript } from "@/types";
 
 import { exportTranscript, type ExportFormat } from "./export";
 
@@ -73,8 +73,15 @@ export async function shareTranscript(
   transcript: Transcript,
   recording: Recording | null,
   format: ExportFormat,
+  briefs: Brief[] = [],
 ): Promise<ShareOutcome> {
-  const exported = exportTranscript(transcript, recording, format, new Date());
+  const exported = exportTranscript(
+    transcript,
+    recording,
+    format,
+    new Date(),
+    briefs,
+  );
 
   let file: File;
   try {

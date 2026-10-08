@@ -20,6 +20,7 @@ import {
   chooseProvider,
   currentSelection,
   deleteTranscript,
+  transcriptLabel,
   shareRecordingAudio,
   shareTranscript,
   type ExportFormat,
@@ -31,6 +32,7 @@ import {
 } from "@/features/transcription";
 import { OptionPicker } from "@/components/option-picker";
 import { ExportPicker } from "@/components/export-picker";
+import { briefsFor } from "@/features/enrichment";
 import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
 import { BusyIndicator } from "@/components/busy-indicator";
 import { PlaybackControls } from "@/components/playback-controls";
@@ -204,7 +206,12 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const exportTranscriptAs = (format: ExportFormat) => {
     setExporting(false);
     if (!selected) return;
-    void shareTranscript(selected, recording, format).then(report);
+    // Read at the moment of export rather than held: this screen lists
+    // transcripts, and whichever is selected may have briefs it has never
+    // shown.
+    void shareTranscript(selected, recording, format, briefsFor(selected.id)).then(
+      report,
+    );
   };
 
   const shareAudio = () => {
@@ -307,13 +314,18 @@ export function RecordingDetailScreen({ id }: { id: string }) {
                     onPress={() => setSelectedTranscriptId(t.id)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`${t.modelId} transcript`}
+                    accessibilityLabel={`${transcriptLabel(t)} transcript`}
                     className={`min-h-[36px] justify-center rounded-full border px-3 ${
                       isSelected ? "border-foreground bg-card" : "border-border"
                     }`}
                   >
                     <Text variant="caption" className={isSelected ? "text-foreground" : ""}>
-                      {t.modelId}
+                      {/*
+                        Not `modelId` alone: that records origin, so a corrected
+                        or edited copy carries the same one as the transcript it
+                        came from and the two chips would be identical.
+                      */}
+                      {transcriptLabel(t)}
                     </Text>
                   </Pressable>
                 );

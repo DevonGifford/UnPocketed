@@ -20,6 +20,19 @@ import {
   writeApiKey,
 } from "@/features/transcription";
 import { describeProvider, listProviders } from "@/providers/transcription";
+import {
+  chooseEnrichmentModel,
+  chooseEnrichmentProvider,
+  effectiveEnrichmentSelection,
+  maskEnrichmentKey,
+  readEnrichmentKey,
+  readEnrichmentPreferences,
+  writeEnrichmentKey,
+} from "@/features/enrichment";
+import {
+  describeEnrichmentProvider,
+  listEnrichmentProviders,
+} from "@/providers/enrichment";
 
 /**
  * Settings (§19, §20). Provider, Model and key are the only MVP configuration.
@@ -40,6 +53,23 @@ export function SettingsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   /*
+   * Enrichment's own selection, key and pickers.
+   *
+   * Kept entirely separate from transcription's above, which is the whole point
+   * of two registries: a speech recogniser and a summarising model are
+   * different choices with different keys, and a user may well want Deepgram
+   * for one and Anthropic for the other.
+   */
+  const [enrichMaskedKey, setEnrichMaskedKey] = useState<string | null>(null);
+  const [editingEnrichKey, setEditingEnrichKey] = useState(false);
+  const [pickingEnrich, setPickingEnrich] = useState<"provider" | "model" | null>(
+    null,
+  );
+  const [enrichSelection, setEnrichSelection] = useState(() =>
+    effectiveEnrichmentSelection(readEnrichmentPreferences(), listEnrichmentProviders()),
+  );
+
+  /*
    * A screen-local mirror of the stored selection, not the selection itself.
    *
    * The choice lives in a file because `transcribeRecording` has to read it too
@@ -53,6 +83,14 @@ export function SettingsScreen() {
   const [diarize, setDiarize] = useState(() => diarizeEnabled(readPreferences()));
 
   const providers = useMemo(() => listProviders(), []);
+  const enrichProviders = useMemo(() => listEnrichmentProviders(), []);
+  const enrichProvider = useMemo(
+    () =>
+      enrichSelection
+        ? describeEnrichmentProvider(enrichSelection.providerId)
+        : null,
+    [enrichSelection],
+  );
   const provider = useMemo(
     () => (selection ? describeProvider(selection.providerId) : null),
     [selection],
@@ -75,7 +113,32 @@ export function SettingsScreen() {
     void readApiKey(descriptor.id).then((key) => setMaskedKey(maskApiKey(key)));
   }, []);
 
-  useFocusEffect(refresh);
+  /** The same refresh for enrichment, kept separate so neither can clobber the other. */
+  const refreshEnrichment = useCallback(() => {
+    const next = effectiveEnrichmentSelection(
+      readEnrichmentPreferences(),
+      listEnrichmentProviders(),
+    );
+    setEnrichSelection(next);
+
+    const descriptor = next ? describeEnrichmentProvider(next.providerId) : null;
+    if (!descriptor?.requiresApiKey) {
+      setEnrichMaskedKey(null);
+      return;
+    }
+    // TODO: Same race as above — a Provider switched while this read is in
+    // flight would show the previous Provider's key.
+    void readEnrichmentKey(descriptor.id).then((key) =>
+      setEnrichMaskedKey(maskEnrichmentKey(key)),
+    );
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      refreshEnrichment();
+    }, [refresh, refreshEnrichment]),
+  );
 
   const submitKey = (apiKey: string) => {
     setEditingKey(false);
@@ -110,6 +173,38 @@ export function SettingsScreen() {
     // that the old one is still in force.
     refresh();
   };
+
+  const submitEnrichKey = (apiKey: string) => {
+    setEditingEnrichKey(false);
+    setError(null);
+    if (!enrichSelection) return;
+    void writeEnrichmentKey(enrichSelection.providerId, apiKey)
+      .then(refreshEnrichment)
+      .catch(() =>
+        setError(
+          "The key could not be saved to this device's secure storage. It has not been stored.",
+        ),
+      );
+  };
+
+  const commitEnrichment = (write: () => void) => {
+    setPickingEnrich(null);
+    try {
+      write();
+      setError(null);
+    } catch {
+      setError(
+        "That choice could not be saved to this device. Settings still show what Unpocketed will actually use.",
+      );
+    }
+    refreshEnrichment();
+  };
+
+  const enrichModelName =
+    enrichProvider?.models.find((model) => model.id === enrichSelection?.modelId)
+      ?.name ??
+    enrichSelection?.modelId ??
+    "—";
 
   const modelName =
     provider?.models.find((model) => model.id === selection?.modelId)?.name ??
@@ -201,6 +296,69 @@ export function SettingsScreen() {
           ) : null}
         </View>
 
+        {/*
+          A section of its own, not more rows under TRANSCRIPTION. The two are
+          different stages with different providers, different keys and
+          different bills — and the whole reason there are two registries is so
+          a speech recogniser and a summarising model never appear in one list.
+        */}
+        <View className="px-4 pb-2 pt-8">
+          <Text variant="caption" className="tracking-widest">
+            BRIEFS
+          </Text>
+        </View>
+
+        <View className="border-t border-border">
+          <SettingRow
+            label="Provider"
+            value={enrichProvider?.name ?? "Not configured"}
+            onPress={enrichProvider ? () => setPickingEnrich("provider") : undefined}
+          />
+          <SettingRow
+            label="Model"
+            value={enrichModelName}
+            onPress={enrichProvider ? () => setPickingEnrich("model") : undefined}
+          />
+          <SettingRow
+            label="API key"
+            value={
+              enrichProvider && !enrichProvider.requiresApiKey
+                ? "Not needed"
+                : (enrichMaskedKey ?? "Not set")
+            }
+            onPress={
+              enrichProvider?.requiresApiKey
+                ? () => setEditingEnrichKey(true)
+                : undefined
+            }
+          />
+        </View>
+
+        {enrichProvider?.requiresApiKey ? (
+          <SettingRow
+            label="Get an API key"
+            value={enrichProvider.name}
+            onPress={() => void Linking.openURL(enrichProvider.keyUrl)}
+          />
+        ) : null}
+
+        <View className="gap-2 px-4 pt-3">
+          <Text variant="caption">
+            A brief is written by an AI provider you choose and pay for
+            directly, from the text of a transcript. Your recording itself is
+            never sent.
+          </Text>
+          {/*
+            §19's disclosure, one layer down. Gemini's is the only notice in
+            this app that states a *condition* rather than a fact — its tier
+            follows the Google Cloud project's billing status rather than the
+            API key, and nothing in the API reports which applies.
+          */}
+          {enrichProvider ? (
+            <Text variant="caption">{enrichProvider.retentionNotice}</Text>
+          ) : null}
+        </View>
+
         <View className="px-4 pb-2 pt-8">
           <Text variant="caption" className="tracking-widest">
             ABOUT
@@ -242,6 +400,50 @@ export function SettingsScreen() {
           if (!selection) return;
           commit(() => chooseModel(selection.providerId, id));
         }}
+      />
+
+      <OptionPicker
+        open={pickingEnrich === "provider"}
+        onOpenChange={(open) => setPickingEnrich(open ? "provider" : null)}
+        title="Brief provider"
+        description="Each provider needs its own API key and bills you directly. This is separate from the provider that transcribes your audio."
+        options={enrichProviders.map((candidate) => ({
+          id: candidate.id,
+          label: candidate.name,
+          // Shown at the moment of choosing, because a Settings notice read
+          // once is not where a free tier's cost should be discovered.
+          detail: candidate.pickerWarning ?? undefined,
+        }))}
+        selectedId={enrichSelection?.providerId ?? null}
+        onSelect={(id) => commitEnrichment(() => chooseEnrichmentProvider(id))}
+      />
+
+      <OptionPicker
+        open={pickingEnrich === "model"}
+        onOpenChange={(open) => setPickingEnrich(open ? "model" : null)}
+        title={enrichProvider ? `${enrichProvider.name} model` : "Model"}
+        description="A more capable model writes a better brief and costs more — though every option here costs far less than transcribing the same recording did."
+        options={(enrichProvider?.models ?? []).map((model) => ({
+          id: model.id,
+          label: model.name,
+          detail:
+            model.id === enrichProvider?.defaultModelId ? "Default" : undefined,
+        }))}
+        selectedId={enrichSelection?.modelId ?? null}
+        onSelect={(id) => {
+          if (!enrichSelection) return;
+          commitEnrichment(() =>
+            chooseEnrichmentModel(enrichSelection.providerId, id),
+          );
+        }}
+      />
+
+      <ApiKeyDialog
+        open={editingEnrichKey}
+        onOpenChange={setEditingEnrichKey}
+        providerName={enrichProvider?.name ?? "Provider"}
+        hasExistingKey={enrichMaskedKey !== null}
+        onSubmit={submitEnrichKey}
       />
 
       <ApiKeyDialog

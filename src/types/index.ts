@@ -121,6 +121,58 @@ export interface Transcript {
   updatedAt: string;
 }
 
+/**
+ * An LLM's structured reading of a Transcript (§10, §38's PR 9.5).
+ *
+ * Owned by a Transcript the way a Transcript is owned by a Recording: many per
+ * parent, each attributed, **none replacing what it describes**. Deleting a
+ * Brief never touches the Transcript, and producing one never rewrites it — a
+ * model that cleans up wording produces a derived Transcript instead, because
+ * that is an edit by a different author rather than a different kind of thing.
+ *
+ * Regenerable, and that shapes everything about how it is treated. The input is
+ * text already on the device, so a lost Brief costs an LLM call rather than
+ * another upload — which is why enrichment runs on demand, why a bad Brief is
+ * re-rolled rather than edited, and why none of this needed to ship before the
+ * transcript work did.
+ */
+export interface Brief {
+  id: string;
+  transcriptId: string;
+  /** Which LLM wrote this, so §20's question stays answerable one layer down. */
+  providerId: string;
+  modelId: string;
+  /**
+   * Every field is optional, and absence is meaningful.
+   *
+   * A model that cannot draw a conclusion from a recording leaves `conclusion`
+   * out, and the interface shows nothing rather than a heading over filler.
+   * §3.7 forbids the appearance of substance where there is none, and a padded
+   * summary is exactly that — so the schema requires nothing and an empty
+   * string is read as absent.
+   */
+  title?: string;
+  headline?: string;
+  summary?: string;
+  overview?: string;
+  conclusion?: string;
+  /**
+   * A name for a speaker, keyed by the index the **recogniser** assigned.
+   *
+   * The LLM may put a name to a voice that diarization already separated,
+   * where the transcript states or implies one. It must never decide *who
+   * spoke which words*: the turns belong to the recogniser, and inferring them
+   * from flat text means inventing boundaries (§10's rule for
+   * {@link TranscriptSegment}, one layer up).
+   *
+   * Still a label, not an identity — a name here applies inside this Brief and
+   * says nothing about any other Recording.
+   */
+  speakerNames?: Record<number, string>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** §21. Describes a Recording's transcription state, not a Transcript's. */
 export type TranscriptionState =
   | "not-transcribed"
