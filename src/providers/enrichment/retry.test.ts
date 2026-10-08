@@ -56,15 +56,29 @@ describe("withBusyRetry", () => {
     expect(result.status).toBe(200);
   });
 
-  it("gives up after a bounded number of attempts", async () => {
-    // Someone is watching a spinner; this is not a background job.
+  /*
+   * One retry, not two. A 503 is either a momentary spike — which one repeat
+   * catches — or a saturated model, which answers 503 however many times it is
+   * asked. Extra attempts only delay the failure while burning a free tier's
+   * requests-per-minute allowance toward a 429.
+   */
+  it("retries exactly once before giving up", async () => {
     let calls = 0;
     const result = await withBusyRetry(async () => {
       calls += 1;
       return response(503);
     });
-    expect(calls).toBe(3);
+    expect(calls).toBe(2);
     expect(result.status).toBe(503);
+  });
+
+  it("never retries a rate limit, which is how an app gets flagged", async () => {
+    let calls = 0;
+    await withBusyRetry(async () => {
+      calls += 1;
+      return response(429);
+    });
+    expect(calls).toBe(1);
   });
 
   it("does not retry a fault", async () => {

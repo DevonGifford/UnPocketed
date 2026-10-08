@@ -3,8 +3,13 @@ import { EnrichmentAborted } from "./types";
 /*
  * Retrying a request the provider told us to retry.
  *
- * Only for `502`/`503`/`504` — the provider is up and the model is busy. That
- * distinction is what makes this safe rather than a papering-over:
+ * Only for `502`/`503`/`504` — the provider is up and the model is busy.
+ * **A `429` is never retried**, and that is the important exclusion: it is the
+ * user's own rate limit, and repeating a request the provider has just refused
+ * for volume is exactly how an app gets throttled harder or flagged. It gets a
+ * message instead.
+ *
+ * What makes retrying the busy statuses safe rather than a papering-over:
  *
  * - **Nothing was processed**, so nothing was billed and nothing is duplicated.
  *   A timeout mid-response would be a different matter entirely, and is not
@@ -16,16 +21,24 @@ import { EnrichmentAborted } from "./types";
  * Free tiers meet this constantly, because the newest model is both the default
  * and where everyone else is.
  *
- * Deliberately short and bounded. This is a person waiting on a phone, not a
- * background job: two extra attempts over a few seconds either clears a spike
- * or proves it is not one, and anything longer is a spinner that looks hung.
+ * **Exactly one retry**, which was cut down from two after watching it against
+ * a real free tier. A 503 is either a momentary spike or a saturated model, and
+ * only the first is worth waiting for: a single repeat catches a blip, while a
+ * saturated model returns 503 to every attempt and more tries only make the
+ * failure arrive later. Observed directly — the same model answered 503 over
+ * several minutes, which three attempts in four seconds would not have helped.
+ *
+ * The restraint also matters on a free tier. A 503 costs no tokens, but it
+ * almost certainly counts against a requests-per-minute allowance, so each
+ * extra attempt pushes toward the `429` this deliberately never retries —
+ * repeating a rate limit is how an app earns one.
  */
 
-/** Total attempts, including the first. */
-const MAX_ATTEMPTS = 3;
+/** Total attempts, including the first. One retry, by the reasoning above. */
+const MAX_ATTEMPTS = 2;
 
 /** Waits before each retry, in order. One entry per retry after the first try. */
-const BACKOFF_MS = [1_000, 3_000];
+const BACKOFF_MS = [1_500];
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
