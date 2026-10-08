@@ -133,6 +133,32 @@ Disclosed in two places, both already built:
 OpenAI-compatible endpoint is third and **may slip**, as it did from PR8 — recorded here so
 that slipping is a known outcome rather than a quiet omission.
 
+## Corrected by the first live runs (2026-10-08)
+
+Three things this research got wrong, all found within an hour of a real key.
+
+**The free tier is worse than "content used to improve our products".** That is what
+Google's *pricing* page states, and it is what the original disclosure was written from.
+Google's developer guidance for the free tier goes further: unpaid requests **may be read by
+human reviewers**, and it tells developers not to send private or proprietary data on that
+tier. For an app whose §26 names transcripts as the most sensitive thing it holds, that is a
+materially different claim, and the notice now carries the stronger one.
+
+**A pricing page is not a list of models an account can use.** The model list was built from
+one and included `gemini-2.5-flash`, which is still published, still billed, and answers
+`404` — *"no longer available to new users"*. Only the account can say what it may reach.
+
+**The flagship free model is heavily contended.** `gemini-3.8-flash` returned `503`
+— *"currently experiencing high demand"* — repeatedly over several minutes. The research
+costed the free tier and never asked whether it is **available**, which turns out to be the
+binding constraint rather than price. The Lite models are the practical answer: Google tunes
+them for extraction with more generous limits, and writing a Brief is extraction.
+
+**What the research got right:** every structural claim. The endpoint, the auth header, the
+schema subset and the response path were all correct on the first request that reached them.
+The failures were in judgement layered on top — which models exist, what a tier implies, how
+hard to retry — not in the API reading.
+
 ## Not examined
 
 Mistral, Cohere, Llama via a host, and any self-hosted model other than through the

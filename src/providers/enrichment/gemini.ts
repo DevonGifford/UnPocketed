@@ -180,10 +180,25 @@ export function createGemini(apiKey: string): EnrichmentProvider {
       maxInputTokens: 1_000_000,
     },
     requiresApiKey: true,
+    /*
+     * Only models a **new** free key can reach.
+     *
+     * The first list here was built from Google's pricing page and was wrong:
+     * it included `gemini-2.5-flash`, which is still published and still billed
+     * but answers `404` with "no longer available to new users". A pricing page
+     * lists what a vendor charges for, not what an account may use.
+     *
+     * The Lite models matter more than their position suggests. Google
+     * describes them as tuned for extraction and categorisation with more
+     * generous request limits — which is both what writing a Brief actually is,
+     * and the answer to the flagship model's constant `503` under free-tier
+     * load.
+     */
     models: [
       { id: "gemini-3.8-flash", name: "Gemini 3.8 Flash" },
-      { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash" },
-      { id: "gemini-2.5-flash-lite", name: "Gemini 2.5 Flash-Lite" },
+      { id: "gemini-3.7-flash", name: "Gemini 3.7 Flash" },
+      { id: "gemini-3.5-flash-lite", name: "Gemini 3.5 Flash-Lite" },
+      { id: "gemini-3.1-flash-lite", name: "Gemini 3.1 Flash-Lite" },
     ],
     defaultModelId: "gemini-3.8-flash",
     keyUrl: "https://aistudio.google.com/apikey",
@@ -193,9 +208,22 @@ export function createGemini(apiKey: string): EnrichmentProvider {
      * key; Gemini's depends on billing being enabled on the Google Cloud
      * project behind it, which no API reports.
      */
+    /*
+     * Strengthened on 2026-10-08 after Google's own free-tier guidance turned
+     * out to say more than its pricing page did. "Used to improve our products"
+     * was what the pricing page stated; the developer guidance adds that unpaid
+     * requests may be read by **human reviewers**, and tells developers not to
+     * send private or proprietary data on that tier.
+     *
+     * A transcript is exactly what §26 calls the most sensitive thing this app
+     * holds, so the notice has to carry the stronger claim rather than the
+     * softer one. It still cannot state which tier applies — that follows the
+     * Google Cloud project's billing status, not the key, and no API reports it.
+     */
     retentionNotice:
-      "Google's free tier uses what you send to improve its products. Its paid tier does not. Which applies depends on whether billing is enabled on your Google Cloud project, and Unpocketed has no way to tell — so treat a free key as meaning your transcripts train Google's models.",
-    pickerWarning: "Free tier available — Google may train on what you send",
+      "On Google's free tier, what you send may be used to improve Google's models and may be read by human reviewers; Google's own guidance is not to send private data on it. The paid tier does neither. Which applies depends on whether billing is enabled on your Google Cloud project, and Unpocketed has no way to tell — so treat a free key as meaning people at Google may read this transcript.",
+    pickerWarning:
+      "Free tier: Google may train on this, and people there may read it",
 
     async enrich(input, options) {
       if (input.estimatedTokens > this.capabilities.maxInputTokens) {
