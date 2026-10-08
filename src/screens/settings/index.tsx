@@ -70,6 +70,8 @@ export function SettingsScreen() {
       setMaskedKey(null);
       return;
     }
+    // TODO: Ignore this result if the user selected another Provider while
+    // the key was loading, or Settings may show the previous Provider's key.
     void readApiKey(descriptor.id).then((key) => setMaskedKey(maskApiKey(key)));
   }, []);
 

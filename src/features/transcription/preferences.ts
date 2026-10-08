@@ -138,6 +138,8 @@ export function readPreferences(): TranscriptionPreferences {
     const file = settingsFile();
     if (file.exists) next = parse(JSON.parse(file.textSync()));
   } catch {
+    // TODO: Do not fall back to the default Provider when a saved choice is
+    // unreadable; that could bill a different account without the user's choice.
     // A missing, half-written or hand-edited file means "not chosen", and the
     // next write replaces it wholesale.
   }
@@ -213,6 +215,8 @@ export function effectiveSelection(
   preferences: TranscriptionPreferences,
   providers: ProviderDescriptor[],
 ): TranscriptionSelection | null {
+  // TODO: If a chosen Provider is no longer available, ask the user to choose
+  // again instead of silently switching to the default billing account.
   const provider =
     providers.find((candidate) => candidate.id === preferences.providerId) ??
     providers.find((candidate) => candidate.id === DEFAULT_PROVIDER_ID) ??

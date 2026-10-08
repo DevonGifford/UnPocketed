@@ -28,6 +28,8 @@ export function TranscriptBody({ transcript }: { transcript: Transcript }) {
     );
   }
 
+  // TODO: Check that segments contain all the words in transcript.text before
+  // using them as the reading view; partial turns can hide paid-for text.
   return (
     <View className="gap-4">
       {segments.map((segment, index) => {

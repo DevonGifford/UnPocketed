@@ -67,6 +67,8 @@ export function toSegments(
      * being dropped or folded into the previous speaker: losing the words
      * would be worse, and guessing the speaker is the exact thing §10 forbids.
      */
+    // TODO: Keep unlabelled speech without presenting it as another identified
+    // Speaker. The Provider has not said who spoke this turn.
     const label = turn.speaker == null ? "" : String(turn.speaker);
 
     let speaker = indexByLabel.get(label);
