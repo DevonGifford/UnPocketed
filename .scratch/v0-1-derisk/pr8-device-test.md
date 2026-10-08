@@ -120,23 +120,43 @@ Each of these is a code path PR7 or PR8 wrote and nothing has ever executed.
     Back immediately. Reopen the recording. Expect it to re-attach and finish —
     that is `resumeJobFor`, and it must not start a second job. Check the
     AssemblyAI dashboard afterwards: **one** transcription billed, not two.
-19. **The same, on Deepgram.** Switch to Deepgram, start, press Back, reopen.
-    Deepgram has nothing to re-attach *to*, so expect the honest message rather
-    than a recovery: *"That transcription could not be picked up again"*. It
-    says you may still have been charged — check the dashboard and confirm
-    whether that happened, because that answer is currently a documented
-    uncertainty rather than a known fact.
+19. **Deepgram, leaving the screen.** Switch to Deepgram, start, press Back,
+    reopen. Expect the transcript to **arrive anyway**.
+
+    This is deliberate and is not the same test as step 18. A synchronous
+    provider has no polling phase to stop — the single request *is* the
+    transcription — so the caller's abort signal is not forwarded to it at all.
+    Honouring it would convert "the user left the screen" into "throw away work
+    that may already have been billed and that no `resume` can recover". The
+    request therefore runs to completion in the background and files its
+    result.
+
+20. **Deepgram, killing the app.** Start a transcription and have the app
+    *killed* mid-flight (`adb shell am force-stop com.unpocketed.app`), then
+    relaunch. **This** is where Deepgram's missing job reference bites: expect
+    *"That transcription could not be picked up again"*, which says you may
+    still have been charged.
+
+    Note this is the one place `force-stop` is a genuine kill test. AGENTS.md
+    records that it proves nothing about an interrupted *recording*, because
+    `MediaRecorder` runs in the media server and finalises the file regardless.
+    A JavaScript promise holding an HTTP request has no such refuge — the app
+    process dies and the request dies with it.
+
+    Then check the Deepgram dashboard. Whether that request was billed is
+    currently a documented uncertainty rather than a known fact, and this is
+    what settles it.
 
 ## 5. A real recording, not a test clip
 
-20. Record or import something **an hour long**, and transcribe it on
+21. Record or import something **an hour long**, and transcribe it on
     **AssemblyAI**.
 
 This is the one that matters for §38's PR5 promise that an hour-long recording
 can be trusted, and it is the first time the network path sees a real file —
 roughly 43–45 MB at the ~96 kbps the test device negotiates.
 
-21. Then try the same hour-long recording on **Deepgram**.
+22. Then try the same hour-long recording on **Deepgram**.
 
 Expect this one to be **genuinely at risk**, and not because of a bug.
 Deepgram caps processing at **10 minutes per file** and answers `504` past it,
@@ -160,5 +180,5 @@ own ceiling.
 - The billed usage from both dashboards against the number of transcriptions you
   started. Step 18 in particular: a second charge there means the re-attach
   resubmitted, which is the specific failure AssemblyAI was chosen to prevent.
-- Whether step 21 passed, failed with the `504` message, or failed some other
+- Whether step 22 passed, failed with the `504` message, or failed some other
   way.
