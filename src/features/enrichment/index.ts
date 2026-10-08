@@ -28,3 +28,7 @@ export {
   saveBrief,
 } from "./repository";
 export { briefIdFor } from "./storage";
+export {
+  useTranscriptEnrichment,
+  type TranscriptEnrichment,
+} from "./use-enrichment";

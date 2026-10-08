@@ -17,6 +17,9 @@ import {
   type ShareOutcome,
 } from "@/features/transcription";
 import { ExportPicker } from "@/components/export-picker";
+import { BriefView } from "@/components/brief-view";
+import { BusyIndicator } from "@/components/busy-indicator";
+import { useTranscriptEnrichment } from "@/features/enrichment";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 
 /**
@@ -34,6 +37,18 @@ import { formatDuration, formatRecordedAt } from "@/lib/format";
 export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string }) {
   const router = useRouter();
   const { transcript } = useTranscript(transcriptId);
+  /*
+   * Called before the early return below, and so unconditionally: the hook
+   * takes a null transcript until one is read.
+   */
+  const {
+    briefs,
+    busy: writingBrief,
+    failure: briefFailure,
+    enrich,
+    dismissFailure: dismissBriefFailure,
+  } = useTranscriptEnrichment(transcript);
+
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [failure, setFailure] = useState<ShareOutcome | null>(null);
@@ -92,6 +107,49 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
             {speakers ? ` · ${speakers}` : ""}
           </Text>
         </HudFrame>
+
+        {/*
+          Briefs sit **above** the transcript and never in place of it (§23).
+          The reader must always be able to reach what the recogniser actually
+          returned, however good the summary above it looks.
+        */}
+        {writingBrief ? <BusyIndicator label="Writing a brief…" /> : null}
+
+        {briefFailure ? (
+          <View className="gap-2 rounded-md border border-border bg-card p-4">
+            <Text variant="headline">{briefFailure.title}</Text>
+            <Text variant="body">{briefFailure.detail}</Text>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={dismissBriefFailure}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+              >
+                <Text variant="body">Dismiss</Text>
+              </Pressable>
+              {briefFailure.retryable && !writingBrief ? (
+                <Pressable
+                  onPress={enrich}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again"
+                  className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+                >
+                  <Text variant="body">Try again</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+        ) : null}
+
+        {/*
+          Several Briefs means several models over one transcript — §22's
+          comparison, a layer down. Each says which model wrote it, so they can
+          be told apart rather than blurring into one opinion.
+        */}
+        {briefs.map((brief) => (
+          <BriefView key={brief.id} brief={brief} />
+        ))}
 
         <View className="gap-2 rounded-md border border-border p-4">
           <Text variant="body" className="text-primary">
@@ -153,6 +211,30 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
             className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
           >
             <Text variant="body">Export</Text>
+          </Pressable>
+
+          {/*
+            On demand, never automatic. It spends the user's own money, and a
+            Brief is regenerable from text already here — so there is nothing
+            to gain by running it unasked and a bill to pay for doing so.
+            Re-running the same model replaces its Brief; a different model adds
+            one beside it, which is what makes two comparable.
+          */}
+          <Pressable
+            onPress={writingBrief ? undefined : enrich}
+            accessibilityRole="button"
+            accessibilityLabel={
+              briefs.length > 0 ? "Write another brief" : "Write a brief"
+            }
+            className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+          >
+            <Text variant="body">
+              {writingBrief
+                ? "Writing…"
+                : briefs.length > 0
+                  ? "Another brief"
+                  : "Write a brief"}
+            </Text>
           </Pressable>
         </View>
 
