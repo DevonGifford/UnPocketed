@@ -140,6 +140,9 @@ export function readPreferences(): TranscriptionPreferences {
   } catch {
     // TODO: Do not fall back to the default Provider when a saved choice is
     // unreadable; that could bill a different account without the user's choice.
+    // Decided 2026-10-08 (Devon), not yet built: treat it as unconfigured —
+    // refuse to transcribe and make the user choose again in Settings, rather
+    // than transcribing against an account they did not pick.
     // A missing, half-written or hand-edited file means "not chosen", and the
     // next write replaces it wholesale.
   }
@@ -217,6 +220,9 @@ export function effectiveSelection(
 ): TranscriptionSelection | null {
   // TODO: If a chosen Provider is no longer available, ask the user to choose
   // again instead of silently switching to the default billing account.
+  // Decided 2026-10-08 (Devon), not yet built: report no selection, and let
+  // Transcribe fail pointing at Settings, rather than falling back and saying
+  // so afterwards. The same answer covers the unreadable-file case above.
   const provider =
     providers.find((candidate) => candidate.id === preferences.providerId) ??
     providers.find((candidate) => candidate.id === DEFAULT_PROVIDER_ID) ??
