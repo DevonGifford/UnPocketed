@@ -67,3 +67,6 @@ Thumbs.db
 # tracked on purpose — a fresh clone should still carry the open decisions.
 # Uncomment to keep planning artefacts out of the published repo.
 # .scratch/
+
+# Release signing credentials (android/ is ignored already; belt and braces)
+keystore.properties
