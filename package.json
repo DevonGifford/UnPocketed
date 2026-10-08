@@ -2,6 +2,7 @@
   "name": "unpocketed",
   "main": "expo-router/entry",
   "version": "0.1.0",
+  "packageManager": "pnpm@12.3.4",
   "dependencies": {
     "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo/ui": "~57.0.21",
