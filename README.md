@@ -192,6 +192,7 @@ Unpocketed will not ship features designed to conceal that recording is taking p
 | [Android setup](docs/android-setup.md) | Getting a local build toolchain working |
 | [Running locally](docs/running-locally.md) | Running the app on a phone, in a browser, or over wireless ADB |
 | [Releasing](docs/releasing.md) | Producing a signed APK or AAB, and what Play asks for |
+| [Artwork](docs/artwork.md) | The icon and splash files still outstanding, and their sizes |
 | [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
 | [Decision map](.scratch/v0-1-derisk/map.md) | What is settled, what is still open |
 
