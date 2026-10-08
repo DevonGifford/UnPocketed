@@ -1,11 +1,12 @@
-import { ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
+import { useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
 import { AppHeader } from "@/components/app-header";
 import { HudFrame } from "@/components/hud-frame";
 import { Text } from "@/components/ui/text";
 import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
 import { useRecording } from "@/features/library";
-import { useTranscript } from "@/features/transcription";
+import { isProviderOutput, useTranscript } from "@/features/transcription";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 
 /**
@@ -21,6 +22,7 @@ import { formatDuration, formatRecordedAt } from "@/lib/format";
  * PR9. The text is `selectable` so the platform's own copy already works.
  */
 export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string }) {
+  const router = useRouter();
   const { transcript } = useTranscript(transcriptId);
   // Called unconditionally: the hook takes an id that may match nothing.
   const { recording } = useRecording(transcript?.recordingId ?? "");
@@ -54,10 +56,23 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
             */}
             {recording?.title ?? "Deleted recording"}
           </Text>
-          {/* §20: a transcript must always say which provider and model made it. */}
+          {/*
+            §20, both halves. The provider and model record where this text
+            came from **originally** and stay true after an edit; the line below
+            says who wrote what is actually here now. Without the second, an
+            edited transcript would still claim a model produced words it never
+            produced.
+          */}
           <Text variant="caption">
             {transcript.providerId} ({transcript.modelId})
           </Text>
+          {isProviderOutput(transcript) ? null : (
+            <Text variant="caption" className="text-primary">
+              {transcript.source?.kind === "llm"
+                ? `Rewritten by ${transcript.source.providerId}`
+                : "Edited by you"}
+            </Text>
+          )}
           <Text variant="caption" className="tabular-nums">
             {formatRecordedAt(transcript.createdAt)}
             {recording ? ` · ${formatDuration(recording.durationMs)}` : ""}
@@ -71,6 +86,31 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
           </Text>
           <TranscriptBody transcript={transcript} />
         </View>
+
+        <View className="flex-row">
+          <Pressable
+            onPress={() => router.push(`/transcripts/${transcript.id}/edit`)}
+            accessibilityRole="button"
+            accessibilityLabel="Edit transcript"
+            className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+          >
+            <Text variant="body">
+              {isProviderOutput(transcript) ? "Edit a copy" : "Edit"}
+            </Text>
+          </Pressable>
+        </View>
+
+        {/*
+          Said once, where the decision is made. "Edit a copy" is not a safety
+          rail bolted on — it is what editing *is* here, and the label should
+          not let anyone believe they are about to overwrite the model's words.
+        */}
+        {isProviderOutput(transcript) ? (
+          <Text variant="caption">
+            Editing stores your version separately. This transcript stays
+            exactly as {transcript.providerId} produced it.
+          </Text>
+        ) : null}
       </ScrollView>
     </Screen>
   );
