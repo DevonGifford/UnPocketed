@@ -33,26 +33,71 @@ export interface Recording {
  */
 export interface TranscriptSegment {
   /**
-   * Which speaker, as a 0-based index assigned in order of first appearance.
+   * Which speaker, as a 0-based index assigned in order of first appearance,
+   * or **null where the Provider did not say who spoke this turn**.
    *
    * A label inside this Transcript only — **not an identity**. Speaker 0 in one
    * Transcript is not the same person as speaker 0 in another, not even for the
    * same Recording transcribed twice. Providers disagree on how to spell it
    * (AssemblyAI gives `"A"`, Deepgram gives `0`), so adapters normalise to this
    * index rather than passing their own labels through.
+   *
+   * Null is not another speaker. An unattributed turn used to be given its own
+   * index, which rendered as one more person in the room who was never there —
+   * a claim the Provider had not made. Keeping the words while admitting the
+   * attribution is missing is the only option that invents nothing.
    */
-  speaker: number;
+  speaker: number | null;
   text: string;
   /** Offsets into the Recording, in milliseconds. Providers differ on units. */
   startMs: number;
   endMs: number;
 }
 
+/**
+ * Who produced a Transcript's current text.
+ *
+ * Not a boolean, and that is the point. An LLM correcting a mishearing and a
+ * user fixing a typo are the **same operation performed by different authors**,
+ * so one field answers for both rather than two mechanisms doing one job.
+ *
+ * `provider` means the recogniser's own output, untouched since.
+ */
+export type TranscriptSource =
+  /** Straight from the transcription Provider, unedited. */
+  | { kind: "provider" }
+  /** Edited by the user. */
+  | { kind: "user" }
+  /** Rewritten by an LLM, which is named so §20 stays answerable. */
+  | { kind: "llm"; providerId: string; modelId: string };
+
 export interface Transcript {
   id: string;
   recordingId: string;
+  /**
+   * Where this text came from **originally**.
+   *
+   * Stays accurate forever, including after an edit: it records origin, not
+   * authorship of the current words. {@link Transcript.source} answers that,
+   * and §20 needs both halves to stay answerable once text can change.
+   */
   providerId: string;
   modelId: string;
+  /**
+   * Who wrote the text that is here now.
+   *
+   * Absent on Transcripts written before this existed, which is read as
+   * `provider` — nothing could edit one at the time, so that is not a guess.
+   */
+  source?: TranscriptSource;
+  /**
+   * The Transcript this one was made by editing, when it was.
+   *
+   * Editing a derived Transcript updates it in place rather than making a
+   * third, so this is at most one link deep: once something other than the
+   * recogniser owns the text, there is no further provenance to protect.
+   */
+  derivedFrom?: string;
   /**
    * The whole transcript as plain text.
    *

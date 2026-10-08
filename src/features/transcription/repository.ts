@@ -179,6 +179,31 @@ export function clearJob(recordingId: string): void {
 }
 
 /**
+ * Stores a Transcript the user produced by editing (§23).
+ *
+ * Sidecar first, index second, exactly as {@link completeJob} does — and for a
+ * sharper reason here: this text is the user's own writing, not something a
+ * provider can be asked for again. A database rebuild must not be able to lose
+ * it.
+ *
+ * Safe to repeat: a derived Transcript's id comes from its parent and author,
+ * so saving the same edit twice overwrites one file and upserts one row.
+ *
+ * @throws If the sidecar cannot be written, so the caller can tell the user
+ * their edit was not kept rather than letting them navigate away believing it
+ * was.
+ */
+export function saveTranscript(transcript: Transcript): Transcript {
+  writeTranscript(transcript);
+  try {
+    upsertTranscript(transcript);
+  } catch {
+    // The next reconcile picks it up from its sidecar.
+  }
+  return transcript;
+}
+
+/**
  * Deletes one Transcript (§25).
  *
  * Never touches the Recording it interprets — different file, different

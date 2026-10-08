@@ -163,7 +163,9 @@ Unpocketed v0.1 is successful if a new user can:
 13. edit or copy transcript text;
 14. export the transcript;
 15. share/export the original audio;
-16. delete recordings and transcripts intentionally.
+16. delete recordings and transcripts intentionally;
+17. produce a Brief from a transcript using their own LLM provider;
+18. keep the original transcript intact alongside anything derived from it.
 
 If those workflows are reliable and pleasant, v0.1 is complete.
 
@@ -181,7 +183,6 @@ The first release deliberately does **not** attempt to provide:
 - payment processing;
 - social functionality;
 - sharing through hosted public links;
-- automatic summaries;
 - mind maps;
 - chat-with-your-recordings;
 - embeddings;
@@ -198,6 +199,13 @@ The first release deliberately does **not** attempt to provide:
 Some of these may become useful later.
 
 None are required to validate the core product.
+
+**Amended 2026-10-08:** *automatic summaries* was removed from this list. Transcript
+enrichment — an LLM reading a transcript and producing a title, summary, overview and
+conclusion — is now part of v0.1. It remains **on demand** rather than automatic, and it
+never replaces the transcript it describes. Note what did **not** move: speaker recognition
+profiles, chat-with-your-recordings, embeddings and semantic search are still non-goals, and
+enrichment must not be used as a route to any of them.
 
 ---
 
@@ -361,15 +369,67 @@ interface Transcript {
   id: string;
   recordingId: string;
 
+  /** Where the text came from originally, even once something has edited it. */
   providerId: string;
   modelId: string;
 
+  /** Who produced the current text: the model, the user, or an LLM. */
+  source: TranscriptSource;
+  /** Set when this transcript was produced by editing another one. */
+  derivedFrom?: string;
+
   text: string;
+  /** Speaker-attributed turns, where the provider was asked for them. */
+  segments?: TranscriptSegment[];
+
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface TranscriptSegment {
+  /**
+   * A label inside this transcript only — never an identity. Null where the
+   * provider did not say who spoke this turn, which is not another speaker.
+   */
+  speaker: number | null;
+  text: string;
+  startMs: number;
+  endMs: number;
+}
+
+/** A Brief is an LLM's structured reading of a transcript. Never a replacement. */
+interface Brief {
+  id: string;
+  transcriptId: string;
+
+  providerId: string;
+  modelId: string;
+
+  /** All optional: an absent field means the model produced none. */
+  title?: string;
+  headline?: string;
+  summary?: string;
+  overview?: string;
+  conclusion?: string;
 
   createdAt: string;
   updatedAt: string;
 }
 ```
+
+`source` is not a boolean. An LLM correcting a mishearing and a user fixing a typo are the
+same operation performed by different authors, so one field answers for both and §20 stays
+answerable at every step. Editing a transcript produces a **new** record rather than mutating
+one — otherwise a record claiming `modelId: universal-2` would hold text that model never
+produced, and §22's comparison would quietly stop meaning anything. Editing an
+already-edited transcript updates it in place rather than chaining: once something other
+than the recogniser owns the text, there is no further provenance to protect.
+
+A transcript and the records derived from it delete independently. Cascading would destroy
+the user's own writing in order to remove a machine's output.
+
+A Brief belongs to a transcript the way a transcript belongs to a recording: many per parent,
+each attributed, none replacing what it describes.
 
 A recording should not contain one mutable `transcript` field.
 
@@ -706,6 +766,17 @@ A transcript should always make it possible to answer:
 
 This is important both for transparency and comparison.
 
+Once a transcript can be **edited**, that question needs a second half, because `providerId`
+and `modelId` alone stop being the whole truth the moment text changes:
+
+> Which provider and model produced this originally, and who has changed it since?
+
+The provider and model fields answer the first half and remain accurate forever — they
+record **origin**. `source` answers the second, naming whoever produced the current text:
+the model, the user, or an LLM that cleaned it up. Without that split, a transcript edited
+by hand still claims a model produced words it never produced, and §22's comparison quietly
+degrades into comparing one model against another model plus a careful proofread.
+
 ---
 
 # 21. Transcription workflow
@@ -767,11 +838,20 @@ The MVP supports:
 - selecting text;
 - copying;
 - editing;
-- identifying provider/model;
+- identifying provider/model, and who has edited since;
 - retranscribing;
+- enriching into a Brief;
 - exporting.
 
 It should not initially attempt to transform every transcript into a complex AI workspace.
+
+**Where speaker turns exist**, the screen reads as turns rather than as a wall of text, and
+editing happens within a turn. A transcript with one speaker throughout reads as plain text:
+labelling every line adds noise without information.
+
+**A Brief sits above the transcript, never in place of it.** The reader must always be able
+to see what the recogniser actually returned. §3.7 applies with particular force here — an
+absent field shows nothing at all, rather than a heading over filler.
 
 ---
 
@@ -800,13 +880,37 @@ For example:
 
 Recorded: 2026-10-04 14:32
 Duration: 48:12
-Provider: Groq
-Model: whisper-large-v3
+Provider: AssemblyAI
+Model: universal-2
+Edited: 2026-10-05 09:18 (by hand)
+Derived from: txn-job-9257447901134180b03de2bda7da71a3
+
+## Summary
+
+...
 
 ## Transcript
 
-...
+Speaker 1: ...
+
+Speaker 2: ...
 ```
+
+`Provider:` and `Model:` state where the text came from **originally** and stay accurate
+after an edit. `Edited:` is what stops them being read as a claim about the current text,
+and the parent id makes the relationship recoverable from the exported file alone.
+
+Each format carries a different amount, and deliberately so:
+
+- **Plain text** is the words, with speaker prefixes where turns exist, and nothing else.
+- **Markdown** is the full human-readable picture: metadata, the Brief's sections where one
+  exists, then the transcript.
+- **JSON** is lossless, because §3.4 calls it "complete machine-readable data" — segments,
+  Brief, provenance and parent links, such that an export round-trips.
+
+Exports are driven by whichever fields a transcript actually has rather than a fixed
+template, so a transcript with no segments and no Brief exports cleanly without empty
+headings.
 
 **JSON**
 
@@ -1312,7 +1416,8 @@ Exit condition:
 
 Deliver:
 
-- transcript editing;
+- transcript editing, per speaker turn;
+- derived transcripts, attributed to whoever wrote them;
 - multiple transcript versions;
 - retranscription;
 - copy;
@@ -1324,6 +1429,40 @@ Deliver:
 Exit condition:
 
 > A user can import, transcribe, compare, edit, and export their data without lock-in.
+
+---
+
+## PR 9.5 — Transcript enrichment
+
+Added 2026-10-08, when §6 stopped listing automatic summaries as a non-goal.
+
+Numbered 9.5 rather than renumbering what follows, because PR1–PR9 are a built and merged
+history and shifting their numbers would invalidate every reference to them in the commit
+log, the decision map and this document.
+
+Deliver:
+
+- an enrichment provider abstraction, separate from the transcription one;
+- the first LLM provider, plus a second to prove the abstraction;
+- Briefs: title, sub-headline, summary, overview, conclusion;
+- LLM cleanup, producing a derived transcript rather than overwriting one;
+- Brief display on the transcript screen;
+- Briefs carried into Markdown and JSON export.
+
+Exit condition:
+
+> The same transcript can be enriched by two different LLM providers, both Briefs kept, and
+> the original transcript is byte-for-byte unchanged by either.
+
+Three constraints this PR must not break. Enrichment is **on demand**: it spends the user's
+own money and its result is regenerable at any time, so nothing runs unasked. The recogniser's
+transcript is **never overwritten** — an LLM's cleanup is a derived transcript beside it.
+And speaker turns come from the recogniser's diarization: an LLM may reformat or name them,
+but must never be the authority for deciding **who spoke**, because inferring that from flat
+text means inventing boundaries.
+
+The provider question — which LLM providers ship first, and on what evidence — is this PR's
+own research, as the transcription provider choice was for PR7.
 
 ---
 
@@ -1407,11 +1546,9 @@ Full-text search across transcripts.
 
 Optional local or user-selected embedding provider.
 
-**Transcript summarisation**
-
-Allow users to explicitly choose an LLM and transform an existing transcript into summaries or structured notes.
-
-This should use the same provider-independent philosophy as transcription.
+**Transcript summarisation — moved into v0.1 on 2026-10-08.** See §38's PR 9.5. The
+provider-independent philosophy this entry asked for is what it ships with: its own
+registry, the user's own key, and no Unpocketed service in the middle.
 
 **Optional encrypted sync**
 

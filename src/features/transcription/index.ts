@@ -25,6 +25,27 @@ export {
   type TranscriptionTarget,
 } from "./provider";
 export {
+  exportTranscript,
+  transcriptAsJson,
+  transcriptAsMarkdown,
+  transcriptAsText,
+  type ExportedFile,
+  type ExportFormat,
+} from "./export";
+export {
+  shareRecordingAudio,
+  shareTranscript,
+  type ShareOutcome,
+} from "./share";
+export {
+  editableTurnsFor,
+  editedTranscript,
+  isProviderOutput,
+  turnsChanged,
+  type EditableTurn,
+} from "./editing";
+export { readingViewFor, segmentsCoverText, type ReadingView } from "./reading";
+export {
   allJobs,
   clearJob,
   deleteTranscript,
@@ -33,6 +54,7 @@ export {
   jobFor,
   listAllTranscripts,
   reconcileTranscripts,
+  saveTranscript,
   transcriptsFor,
 } from "./repository";
 export { useResumeTranscriptions } from "./resume-on-launch";

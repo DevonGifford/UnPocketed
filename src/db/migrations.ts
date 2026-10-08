@@ -109,6 +109,25 @@ const migrations: Migration[] = [
       db.execSync("ALTER TABLE transcripts ADD COLUMN segments TEXT");
     },
   },
+  {
+    version: 5,
+    up: (db) => {
+      /*
+       * Provenance for edited transcripts (§20).
+       *
+       * `source` is a JSON object rather than an enum because an LLM author
+       * carries its own provider and model — §20 has to stay answerable for a
+       * transcript an LLM rewrote, not just for one a human touched.
+       *
+       * Null on every existing row, read as "straight from the provider". That
+       * is not a guess: nothing could edit a transcript before this migration.
+       */
+      db.execSync(`
+        ALTER TABLE transcripts ADD COLUMN source TEXT;
+        ALTER TABLE transcripts ADD COLUMN derived_from TEXT;
+      `);
+    },
+  },
 ];
 
 /** The version a fully migrated database reports. */

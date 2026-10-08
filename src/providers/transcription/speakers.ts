@@ -63,17 +63,19 @@ export function toSegments(
     if (!text) continue;
 
     /*
-     * An unlabelled turn is still a turn. It gets its own bucket rather than
-     * being dropped or folded into the previous speaker: losing the words
-     * would be worse, and guessing the speaker is the exact thing §10 forbids.
+     * An unlabelled turn keeps its words and admits it has no speaker.
+     *
+     * It used to get an index of its own, which rendered as one more person in
+     * the room — a claim the provider never made, and the same invention §10
+     * forbids when it rules out inferring boundaries from text. Dropping the
+     * turn would be worse still: the words are real and the user paid for them.
+     * Null says exactly what is true, and nothing more.
      */
-    // TODO: Keep unlabelled speech without presenting it as another identified
-    // Speaker. The Provider has not said who spoke this turn.
-    const label = turn.speaker == null ? "" : String(turn.speaker);
+    let speaker: number | null = null;
 
-    let speaker = indexByLabel.get(label);
-    if (speaker === undefined) {
-      speaker = indexByLabel.size;
+    if (turn.speaker != null) {
+      const label = String(turn.speaker);
+      speaker = indexByLabel.get(label) ?? indexByLabel.size;
       indexByLabel.set(label, speaker);
     }
 
@@ -112,5 +114,10 @@ export const secondsToMilliseconds = (value: number) => value * 1_000;
  */
 export function speakerCount(segments: TranscriptSegment[] | undefined): number {
   if (!segments || segments.length === 0) return 0;
-  return new Set(segments.map((segment) => segment.speaker)).size;
+  // Unattributed turns are not a speaker, so they never make a one-speaker
+  // transcript look like a conversation.
+  const attributed = segments
+    .map((segment) => segment.speaker)
+    .filter((speaker): speaker is number => speaker !== null);
+  return new Set(attributed).size;
 }

@@ -67,7 +67,16 @@ function RootNavigator() {
         <Stack.Screen name="recordings/index" options={{ title: "Recordings" }} />
         <Stack.Screen name="recordings/[id]" options={{ title: "" }} />
         <Stack.Screen name="transcripts/index" options={{ headerShown: false }} />
-        <Stack.Screen name="transcripts/[id]" options={{ title: "" }} />
+        <Stack.Screen name="transcripts/[id]/index" options={{ title: "" }} />
+        {/*
+          `gestureEnabled: false` so an edit in progress cannot be swiped away
+          past the unsaved-changes guard. The guard catches the back button and
+          the header, but a dismissal gesture on a native stack can outrun it.
+        */}
+        <Stack.Screen
+          name="transcripts/[id]/edit"
+          options={{ title: "Edit transcript", gestureEnabled: false }}
+        />
         <Stack.Screen name="import" options={{ headerShown: false }} />
         <Stack.Screen name="devices" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ title: "Settings" }} />

@@ -2,6 +2,7 @@ import type {
   Transcript,
   TranscriptionJob,
   TranscriptSegment,
+  TranscriptSource,
 } from "@/types";
 
 import { getDatabase } from "./database";
@@ -19,6 +20,9 @@ interface TranscriptRow {
   text: string;
   /** A JSON array of segments, or null where the transcript has none. */
   segments: string | null;
+  /** A JSON {@link TranscriptSource}, or null for untouched provider output. */
+  source: string | null;
+  derived_from: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,7 +39,7 @@ interface JobRow {
 }
 
 const TRANSCRIPT_COLUMNS =
-  "id, recording_id, provider_id, model_id, text, segments, created_at, updated_at";
+  "id, recording_id, provider_id, model_id, text, segments, source, derived_from, created_at, updated_at";
 
 const JOB_COLUMNS =
   "recording_id, provider_id, model_id, job_ref, state, error, created_at, updated_at";
@@ -60,8 +64,25 @@ function segmentsFrom(stored: string | null): TranscriptSegment[] | undefined {
   }
 }
 
+/** Reads the source column. Unreadable JSON is treated as provider output. */
+function sourceFrom(stored: string | null): TranscriptSource | undefined {
+  if (!stored) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    if (typeof parsed !== "object" || parsed === null) return undefined;
+    const kind = (parsed as { kind?: unknown }).kind;
+    if (kind === "provider" || kind === "user" || kind === "llm") {
+      return parsed as TranscriptSource;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function toTranscript(row: TranscriptRow): Transcript {
   const segments = segmentsFrom(row.segments);
+  const source = sourceFrom(row.source);
   return {
     id: row.id,
     recordingId: row.recording_id,
@@ -71,6 +92,8 @@ function toTranscript(row: TranscriptRow): Transcript {
     // Spread so the key is absent rather than explicitly undefined, keeping
     // `segments` in a row and in a sidecar the same shape.
     ...(segments ? { segments } : {}),
+    ...(source ? { source } : {}),
+    ...(row.derived_from ? { derivedFrom: row.derived_from } : {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -125,13 +148,15 @@ export function getTranscript(id: string): Transcript | null {
 export function upsertTranscript(transcript: Transcript): void {
   getDatabase().runSync(
     `INSERT INTO transcripts (${TRANSCRIPT_COLUMNS})
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        recording_id = excluded.recording_id,
        provider_id = excluded.provider_id,
        model_id = excluded.model_id,
        text = excluded.text,
        segments = excluded.segments,
+       source = excluded.source,
+       derived_from = excluded.derived_from,
        created_at = excluded.created_at,
        updated_at = excluded.updated_at`,
     transcript.id,
@@ -142,6 +167,8 @@ export function upsertTranscript(transcript: Transcript): void {
     transcript.segments?.length
       ? JSON.stringify(transcript.segments)
       : null,
+    transcript.source ? JSON.stringify(transcript.source) : null,
+    transcript.derivedFrom ?? null,
     transcript.createdAt,
     transcript.updatedAt,
   );

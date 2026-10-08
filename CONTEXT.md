@@ -46,6 +46,22 @@ _Avoid_: transcript, processing, conversion
 Producing an additional Transcript for a Recording that already has one. Additive — it never replaces existing Transcripts.
 _Avoid_: re-run, redo, regenerate, refresh, update
 
+**Source**:
+Who produced a Transcript's current text — the Provider's Model, the user, or an LLM that cleaned it up. Not a boolean: an LLM correcting a mishearing and a user fixing a typo are the same operation by different authors, so one field answers for both and §20 stays answerable at every step.
+_Avoid_: edited (that is a state, not an author), origin, author (reserved for people)
+
+**Derived Transcript**:
+A Transcript produced by changing another one's text rather than by transcribing audio, carrying a link to the Transcript it came from. Editing a Derived Transcript updates it in place rather than making a third — once something other than the recogniser owns the text, there is no further provenance to protect.
+_Avoid_: version, revision, copy, fork, child
+
+**Brief**:
+The structured reading of a Transcript an LLM produces: title, sub-headline, executive summary, overview and conclusion. Owned by a Transcript, attributed to its own Provider and Model, and never a replacement for the Transcript it describes. Every field is optional — an absent conclusion means the model produced none, and the interface shows nothing rather than a heading over filler.
+_Avoid_: summary (that is one field inside it), analysis, insights, notes, AI summary
+
+**Enrichment**:
+The act of producing a Brief, and of cleaning up a Transcript, from a Transcript's text. Distinct from Transcription in every way that matters: it reads text rather than audio, answers to different Providers, and can be repeated at any time because its input is already on the device.
+_Avoid_: processing, post-processing, polishing, AI pass
+
 **Provider**:
 A service that performs Transcription — speech to text, and nothing else. Chosen by the user, and paid for directly by them where it is a remote one. Reached through an adapter, so the rest of the application stays ignorant of which one is in use.
 

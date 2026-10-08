@@ -76,6 +76,33 @@ export function transcriptIdForJob(jobRef: string): string {
 }
 
 /**
+ * The id a Transcript derived by editing another one takes.
+ *
+ * Derived from the parent and the author, which is what makes §22's "editing
+ * an edit updates it in place" true without any bookkeeping: saving the same
+ * user's edit twice lands on the same file and the same row. An LLM author
+ * gets its own id per model, so a machine cleanup never silently overwrites
+ * something the user wrote.
+ *
+ * @param parentId The Transcript being edited.
+ * @param author `user`, or an LLM's provider and model.
+ */
+export function derivedTranscriptId(
+  parentId: string,
+  author: { kind: "user" } | { kind: "llm"; providerId: string; modelId: string },
+): string {
+  // The parent's own `txn-` prefix is dropped so ids do not nest it twice.
+  const stem = parentId.replace(/^txn-/, "").replace(/\W/g, "").slice(0, 48);
+
+  if (author.kind === "user") return `txn-user-${stem}`;
+
+  const model = `${author.providerId}-${author.modelId}`
+    .replace(/\W/g, "")
+    .slice(0, 32);
+  return `txn-llm-${model}-${stem}`;
+}
+
+/**
  * Writes a Transcript to disk. The durable record of a completed transcription,
  * written before any index row so a failure in between leaves the text safe and
  * merely unindexed.
