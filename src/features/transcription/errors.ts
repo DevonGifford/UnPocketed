@@ -51,9 +51,16 @@ const FAILURES: Record<
   Omit<TranscriptionFailure, "reason" | "retryable">
 > = {
   "not-configured": {
-    title: "No transcription provider is set up",
+    /*
+     * Phrased to be true in both cases it now covers. With one Provider it
+     * meant "nothing is set up"; with two it also fires when the *selected*
+     * Provider has no key while the other one does, and "no transcription
+     * provider is set up" is then simply false — which is the kind of error
+     * message that makes a user doubt the parts that are working.
+     */
+    title: "That provider has no API key yet",
     detail:
-      "Transcription uses a provider you choose and pay for directly. Add an API key in Settings, then try again. Your recording is safe on this device.",
+      "Transcription uses a provider you choose and pay for directly. Add its API key in Settings, then try again. Your recording is safe on this device.",
   },
   unauthorized: {
     title: "The provider did not accept your API key",
