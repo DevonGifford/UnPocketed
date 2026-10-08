@@ -1,4 +1,10 @@
-import { briefPrompt, estimateTokens, readBriefContent } from "./brief";
+import {
+  BRIEF_SCHEMA,
+  BRIEF_SYSTEM_PROMPT,
+  briefPrompt,
+  estimateTokens,
+  readBriefContent,
+} from "./brief";
 import { EnrichmentError } from "./types";
 
 const input = (text: string, speakers: number[] = []) => ({
@@ -89,6 +95,40 @@ describe("readBriefContent", () => {
     expect(() => readBriefContent({ title: "", summary: "   " })).toThrow(
       EnrichmentError,
     );
+  });
+});
+
+describe("BRIEF_SCHEMA", () => {
+  /*
+   * The balance corrected after the first live run. Blanket permission to omit
+   * produced a Brief with a title and nothing else — honest, and useless.
+   */
+  it("requires the two fields any transcript with words can supply", () => {
+    expect(BRIEF_SCHEMA.required).toEqual(["title", "summary"]);
+  });
+
+  it("leaves genuinely contingent fields optional", () => {
+    // A recording may reach no conclusion, and a transcript may name nobody.
+    for (const field of ["conclusion", "speakerNames"]) {
+      expect(BRIEF_SCHEMA.required).not.toContain(field);
+    }
+  });
+});
+
+describe("BRIEF_SYSTEM_PROMPT", () => {
+  it("tells the model which fields may be left out, rather than all of them", () => {
+    expect(BRIEF_SYSTEM_PROMPT).toContain("Always write a title and a summary");
+    expect(BRIEF_SYSTEM_PROMPT).toContain("Omit a conclusion");
+  });
+
+  it("still forbids padding", () => {
+    expect(BRIEF_SYSTEM_PROMPT).toContain("Do not pad");
+  });
+
+  // §10: the recogniser decided who spoke. An LLM reading flat text can only
+  // guess at boundaries, and a confident guess is worse than no answer.
+  it("forbids reassigning speakers", () => {
+    expect(BRIEF_SYSTEM_PROMPT).toContain("Never reassign speech");
   });
 });
 

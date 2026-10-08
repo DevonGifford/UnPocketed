@@ -13,10 +13,20 @@ import { EnrichmentError } from "./types";
 /**
  * The JSON Schema every provider constrains its output to.
  *
- * **Nothing is required**, which is the whole point. §3.7 forbids the
- * appearance of substance where there is none, so a model that cannot write a
- * conclusion omits the field and the interface shows nothing — rather than the
- * model padding one out because the schema demanded it.
+ * **`title` and `summary` are required; nothing else is**, and that balance was
+ * corrected after the first live run rather than reasoned out in advance.
+ *
+ * It began with nothing required at all, on the grounds that §3.7 forbids the
+ * appearance of substance where there is none. Gemini's first real Brief came
+ * back with a title and **every other field omitted** — a technically honest
+ * answer and a useless one. The instruction to omit rather than invent was
+ * written for a *conclusion a recording never reaches*, and it had been applied
+ * to a summary of a transcript that plainly had one.
+ *
+ * So the line sits here instead: a transcript with words in it can always be
+ * titled and summarised, and a model saying otherwise is declining the task
+ * rather than being careful. An overview, a conclusion and a speaker's name are
+ * genuinely contingent, and stay optional — which is what §3.7 was protecting.
  *
  * `additionalProperties: false` because the providers that support strict
  * schema validation require it, and because a field this app does not
@@ -25,6 +35,7 @@ import { EnrichmentError } from "./types";
 export const BRIEF_SCHEMA = {
   type: "object",
   additionalProperties: false,
+  required: ["title", "summary"],
   properties: {
     title: {
       type: "string",
@@ -34,7 +45,7 @@ export const BRIEF_SCHEMA = {
     headline: {
       type: "string",
       description:
-        "One sentence saying what this recording is actually about.",
+        "One sentence saying what this recording is actually about. Always write one for a transcript that has any content.",
     },
     summary: {
       type: "string",
@@ -44,7 +55,7 @@ export const BRIEF_SCHEMA = {
     overview: {
       type: "string",
       description:
-        "A longer prose overview of what was discussed, in the order it was discussed.",
+        "A longer prose overview of what was discussed, in the order it was discussed. Write one whenever the recording covers more than a single point.",
     },
     conclusion: {
       type: "string",
@@ -85,9 +96,13 @@ export const BRIEF_SCHEMA = {
  * Three rules in it are not stylistic, and changing them changes what the app
  * promises:
  *
- * - **Omit rather than invent.** §3.7's "no AI theatre" fails first at the
- *   moment a model writes a confident summary of a recording it did not
- *   understand. An empty field is a true statement; a padded one is not.
+ * - **Omit rather than invent — but omission has a floor.** §3.7's "no AI
+ *   theatre" fails first at the moment a model writes a confident summary of a
+ *   recording it did not understand, so an empty field beats a padded one. The
+ *   first live run showed the opposite failure just as clearly: given blanket
+ *   permission to omit, a model returned a title and nothing else. The rule now
+ *   names what is always producible from words on a page and what genuinely is
+ *   not, instead of leaving the model to decide the whole thing is beyond it.
  * - **Do not reassign speakers.** The recogniser's diarization decided who
  *   spoke. An LLM reading flat text can only guess at boundaries, and a
  *   confident guess is worse than no answer (§10).
@@ -98,7 +113,10 @@ export const BRIEF_SYSTEM_PROMPT = [
   "You read a transcript of a recording and produce a structured brief about it.",
   "",
   "Rules:",
-  "- Write only what the transcript supports. If you cannot produce a field from what is actually said, omit that field entirely rather than writing something vague or generic. An omitted field is correct; a padded one is not.",
+  "- Always write a title and a summary. Any transcript with words in it can be titled and summarised; returning neither is declining the task, not being careful.",
+  "- Write a headline for any transcript with content, and an overview whenever the recording covers more than one point.",
+  "- Omit a conclusion if the recording reaches none, and omit a speaker's name if the transcript does not give it. Those are the fields that are genuinely allowed to be missing.",
+  "- Beyond that, write only what the transcript supports. Do not pad a field with something vague or generic to fill it. An honest short answer beats an invented long one.",
   "- Speaker numbers were assigned by a speech recognition system that separated the voices. Never reassign speech to a different speaker, and never introduce a speaker that is not in the transcript.",
   "- Name a speaker only where the transcript states or clearly implies their name. If no name is evident, leave that speaker unnamed.",
   "- Describe the recording. Do not give the reader advice, and do not comment on the recording's quality.",

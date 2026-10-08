@@ -240,6 +240,18 @@ async function send(
   }
 
   if (!response.ok) {
+    /*
+     * Logged, not just thrown. The failure the user sees is deliberately plain
+     * language (§32) and carries no status code, which is right for them and
+     * useless for diagnosing a provider that changed its API. The body of an
+     * error response is the provider's own explanation — never the transcript —
+     * so logging it leaks nothing.
+     */
+    const detail = await response.text().catch(() => "");
+    console.warn(
+      `[enrichment] ${ENDPOINT} → ${response.status} ${detail.slice(0, 600)}`,
+    );
+
     throw new EnrichmentError(
       kindForStatus(response.status),
       response.status === 429
