@@ -84,6 +84,20 @@ export interface EnrichmentOptions {
   signal?: AbortSignal;
 }
 
+/** A transcript's turns, as a cleanup pass receives them. */
+export interface CleanupInput {
+  turns: { speaker: number | null; text: string }[];
+}
+
+export interface CleanupResult {
+  /** Corrected text, one entry per input turn, in the same order. */
+  texts: string[];
+  /** How many turns actually changed, so a no-op pass can be reported as one. */
+  changed: number;
+  /** The model that actually ran (§20). */
+  modelId: string;
+}
+
 export interface EnrichmentResult {
   content: BriefContent;
   /** The model that actually ran, which a provider may have substituted (§20). */
@@ -205,4 +219,24 @@ export interface EnrichmentProvider {
     input: EnrichmentInput,
     options: EnrichmentOptions,
   ): Promise<EnrichmentResult>;
+
+  /**
+   * Corrects a transcript's wording, turn by turn.
+   *
+   * Optional, mirroring the transcription adapter's `resume?`: a provider that
+   * summarises well may not be worth trusting with a correction pass, and a
+   * tiny local model may only do one of the two. Callers check before offering
+   * it rather than assuming.
+   *
+   * **Returns words, never structure.** The result is one corrected string per
+   * input turn; speakers and timings stay exactly as the recogniser set them,
+   * because an LLM reading text cannot hear who spoke (§10).
+   *
+   * @throws {EnrichmentError} With a `kind` the UI can explain.
+   * @throws {EnrichmentAborted} When the caller's signal fires.
+   */
+  cleanup?(
+    input: CleanupInput,
+    options: EnrichmentOptions,
+  ): Promise<CleanupResult>;
 }

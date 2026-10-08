@@ -1,4 +1,10 @@
 import { BRIEF_SCHEMA, BRIEF_SYSTEM_PROMPT, briefPrompt, readBriefContent } from "./brief";
+import {
+  applyCleanup,
+  CLEANUP_SCHEMA,
+  CLEANUP_SYSTEM_PROMPT,
+  cleanupPrompt,
+} from "./cleanup";
 import { withBusyRetry } from "./retry";
 import {
   EnrichmentAborted,
@@ -8,6 +14,8 @@ import {
   type EnrichmentOptions,
   type EnrichmentProvider,
   type EnrichmentResult,
+  type CleanupInput,
+  type CleanupResult,
 } from "./types";
 
 /*
@@ -81,7 +89,7 @@ export function kindForStatus(status: number): EnrichmentErrorKind {
  * request. Stripping it costs nothing — it only ever said "no extra fields",
  * and `readBriefContent` drops unknown fields regardless.
  */
-function geminiSchema(): unknown {
+function geminiSchema(schema: unknown = BRIEF_SCHEMA): unknown {
   const strip = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(strip);
     if (typeof value !== "object" || value === null) return value;
@@ -94,7 +102,7 @@ function geminiSchema(): unknown {
     return out;
   };
 
-  return strip(BRIEF_SCHEMA);
+  return strip(schema);
 }
 
 /**
@@ -251,6 +259,92 @@ export function createGemini(apiKey: string): EnrichmentProvider {
       }
       return send(input, apiKey, options);
     },
+
+    async cleanup(input, options) {
+      return correct(input, apiKey, options);
+    },
+  };
+}
+
+/**
+ * One request for a correction pass.
+ *
+ * Shares everything with `send` but the prompt and the schema — same endpoint,
+ * same auth, same retry, same error mapping. Kept separate rather than
+ * generalised because the two differ in what they *mean*, and a single
+ * parameterised function would hide that a cleanup rewrites the user's words
+ * while an enrichment only describes them.
+ */
+async function correct(
+  input: CleanupInput,
+  apiKey: string,
+  options: EnrichmentOptions,
+): Promise<CleanupResult> {
+  const original = input.turns.map((turn) => turn.text);
+
+  let response: Response;
+  try {
+    response = await withBusyRetry(
+      () =>
+        fetch(ENDPOINT, {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": apiKey,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: options.modelId,
+            system_instruction: CLEANUP_SYSTEM_PROMPT,
+            input: cleanupPrompt(input.turns),
+            response_format: {
+              type: "text",
+              mime_type: "application/json",
+              schema: geminiSchema(CLEANUP_SCHEMA),
+            },
+          }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }),
+      options.signal,
+    );
+  } catch (error) {
+    if (options.signal?.aborted) throw new EnrichmentAborted();
+    throw new EnrichmentError(
+      "offline",
+      "Could not reach the enrichment provider.",
+      { cause: error },
+    );
+  }
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    console.warn(
+      `[cleanup] ${ENDPOINT} → ${response.status} ${detail.slice(0, 600)}`,
+    );
+    throw new EnrichmentError(
+      kindForStatus(response.status),
+      `The provider rejected the request (${response.status}).`,
+    );
+  }
+
+  const parsed = JSON.parse(await response.text()) as {
+    model?: string;
+    steps?: { type?: string; content?: { type?: string; text?: string }[] }[];
+  };
+  const text = parsed.steps
+    ?.filter((step) => step.type === "model_output" || step.type === undefined)
+    .flatMap((step) => step.content ?? [])
+    .find((block) => block.type === "text")?.text;
+
+  if (typeof text !== "string") {
+    throw new EnrichmentError(
+      "unreadable",
+      "The provider answered without any corrections.",
+    );
+  }
+
+  return {
+    ...applyCleanup(original, text),
+    modelId: parsed.model ?? options.modelId,
   };
 }
 

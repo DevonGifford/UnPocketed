@@ -1,4 +1,10 @@
 import { BRIEF_SCHEMA, BRIEF_SYSTEM_PROMPT, briefPrompt, readBriefContent } from "./brief";
+import {
+  applyCleanup,
+  CLEANUP_SCHEMA,
+  CLEANUP_SYSTEM_PROMPT,
+  cleanupPrompt,
+} from "./cleanup";
 import { withBusyRetry } from "./retry";
 import {
   EnrichmentAborted,
@@ -8,6 +14,8 @@ import {
   type EnrichmentOptions,
   type EnrichmentProvider,
   type EnrichmentResult,
+  type CleanupInput,
+  type CleanupResult,
 } from "./types";
 
 /*
@@ -196,6 +204,103 @@ export function createAnthropic(apiKey: string): EnrichmentProvider {
       }
       return send(input, apiKey, options);
     },
+
+    async cleanup(input, options) {
+      return correct(input, apiKey, options);
+    },
+  };
+}
+
+/**
+ * One request for a correction pass.
+ *
+ * Same endpoint, auth, retry and error mapping as `send`; only the instruction
+ * and the schema differ. Kept separate rather than parameterised because the
+ * two mean different things — a cleanup rewrites the user's words, an
+ * enrichment only describes them — and one shared function would hide that.
+ *
+ * **Unexercised.** No Anthropic key has been configured, so nothing in this
+ * file has run against the live API.
+ */
+async function correct(
+  input: CleanupInput,
+  apiKey: string,
+  options: EnrichmentOptions,
+): Promise<CleanupResult> {
+  const original = input.turns.map((turn) => turn.text);
+
+  let response: Response;
+  try {
+    response = await withBusyRetry(
+      () =>
+        fetch(ENDPOINT, {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": API_VERSION,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: options.modelId,
+            max_tokens: MAX_TOKENS,
+            system: CLEANUP_SYSTEM_PROMPT,
+            messages: [
+              { role: "user", content: cleanupPrompt(input.turns) },
+            ],
+            output_config: {
+              effort: "medium",
+              format: { type: "json_schema", schema: CLEANUP_SCHEMA },
+            },
+          }),
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        }),
+      options.signal,
+    );
+  } catch (error) {
+    if (options.signal?.aborted) throw new EnrichmentAborted();
+    throw new EnrichmentError(
+      "offline",
+      "Could not reach the enrichment provider.",
+      { cause: error },
+    );
+  }
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    console.warn(
+      `[cleanup] ${ENDPOINT} → ${response.status} ${detail.slice(0, 600)}`,
+    );
+    throw new EnrichmentError(
+      kindForStatus(response.status),
+      `The provider rejected the request (${response.status}).`,
+    );
+  }
+
+  const parsed = JSON.parse(await response.text()) as {
+    model?: string;
+    stop_reason?: string;
+    content?: { type?: string; text?: string }[];
+  };
+
+  if (parsed.stop_reason === "refusal") {
+    throw new EnrichmentError(
+      "provider-failed",
+      "The model declined to correct this transcript. Your transcript is unchanged.",
+      { retryable: false },
+    );
+  }
+
+  const text = parsed.content?.find((block) => block.type === "text")?.text;
+  if (typeof text !== "string") {
+    throw new EnrichmentError(
+      "unreadable",
+      "The provider answered without any corrections.",
+    );
+  }
+
+  return {
+    ...applyCleanup(original, text),
+    modelId: parsed.model ?? options.modelId,
   };
 }
 

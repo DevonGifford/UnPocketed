@@ -21,7 +21,9 @@ export type EnrichmentFailureReason =
   /** The transcript has no words in it, so there is nothing to read. */
   | "empty-transcript"
   /** The brief came back but could not be written to disk. */
-  | "not-stored";
+  | "not-stored"
+  /** The chosen provider offers no correction pass. */
+  | "cleanup-unsupported";
 
 export interface EnrichmentFailure {
   reason: EnrichmentFailureReason;
@@ -90,6 +92,11 @@ const FAILURES: Record<
     detail:
       "Something went wrong between here and the provider. Your recording and transcript are unchanged, and you can try again.",
   },
+  "cleanup-unsupported": {
+    title: "That provider cannot correct transcripts",
+    detail:
+      "It can write a brief, but not a corrected version of the transcript. Pick a different provider in Settings if you want one.",
+  },
   "empty-transcript": {
     title: "There is nothing to write about",
     detail:
@@ -121,6 +128,8 @@ const NOT_RETRYABLE: EnrichmentFailureReason[] = [
   // The input is the problem, and it will not change by asking again.
   "too-large",
   "empty-transcript",
+  // The provider does not do this at all; asking again asks the same provider.
+  "cleanup-unsupported",
 ];
 
 /**

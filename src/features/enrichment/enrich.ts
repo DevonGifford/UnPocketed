@@ -1,22 +1,14 @@
 import {
-  createEnrichmentProvider,
-  describeEnrichmentProvider,
   EnrichmentAborted,
   EnrichmentError,
   estimateTokens,
-  listEnrichmentProviders,
   type EnrichmentInput,
-  type EnrichmentProvider,
 } from "@/providers/enrichment";
 import { groupedTurns, readingViewFor, speakerLabel } from "@/features/transcription/reading";
 import type { Brief, Transcript } from "@/types";
 
-import { readEnrichmentKey } from "./credentials";
 import { enrichmentFailure, type EnrichmentFailure } from "./errors";
-import {
-  effectiveEnrichmentSelection,
-  readEnrichmentPreferences,
-} from "./preferences";
+import { resolveSelectedEnrichment } from "./provider";
 import { saveBrief } from "./repository";
 import { briefIdFor } from "./storage";
 
@@ -87,30 +79,6 @@ export function enrichmentInputFor(transcript: Transcript): EnrichmentInput {
   return { text, speakers, estimatedTokens: estimateTokens(text) };
 }
 
-/** Builds the chosen Provider, reading its key from the keystore. */
-async function resolveSelected(): Promise<{
-  provider: EnrichmentProvider;
-  modelId: string;
-} | null> {
-  const selection = effectiveEnrichmentSelection(
-    readEnrichmentPreferences(),
-    listEnrichmentProviders(),
-  );
-  if (!selection) return null;
-
-  const descriptor = describeEnrichmentProvider(selection.providerId);
-  if (!descriptor) return null;
-
-  // Not asked for where the Provider does not want one: a local model has no
-  // account to have a key for (§40).
-  const apiKey = descriptor.requiresApiKey
-    ? await readEnrichmentKey(selection.providerId)
-    : null;
-
-  const provider = createEnrichmentProvider(selection.providerId, apiKey);
-  return provider ? { provider, modelId: selection.modelId } : null;
-}
-
 function toFailure(error: unknown): EnrichmentFailure {
   if (error instanceof EnrichmentError) {
     return enrichmentFailure(error.kind, error.retryable);
@@ -137,7 +105,7 @@ export async function enrichTranscript(
   transcript: Transcript,
   signal?: AbortSignal,
 ): Promise<EnrichOutcome> {
-  const selected = await resolveSelected();
+  const selected = await resolveSelectedEnrichment();
   if (!selected) {
     return { status: "failed", failure: enrichmentFailure("not-configured", false) };
   }

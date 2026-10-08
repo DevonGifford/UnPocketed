@@ -19,6 +19,17 @@ import { derivedTranscriptId } from "./storage";
  * further provenance to protect, so one derived Transcript per author is enough.
  */
 
+/**
+ * Who can author a derived Transcript.
+ *
+ * `provider` is deliberately excluded, and the compiler caught its absence
+ * before a test did: the recogniser authors the **original**, and a derived
+ * Transcript exists precisely because something else changed those words. A
+ * derived Transcript claiming `provider` would be the §20 lie this design was
+ * built to prevent.
+ */
+export type EditAuthor = Extract<TranscriptSource, { kind: "user" | "llm" }>;
+
 /** One turn as it is being edited. Mirrors a segment, minus the commitment. */
 export interface EditableTurn {
   /** Null where the Provider did not attribute this turn; never invented here. */
@@ -72,19 +83,24 @@ function textFrom(turns: EditableTurn[]): string {
  * Pure: it decides what the record should be and leaves writing it to the
  * caller, which is what lets the decision be tested without a filesystem.
  *
- * @param editing The Transcript the user has open. If it is already theirs,
- * the result updates it; otherwise the result is a new Transcript derived from
- * it, and `editing` is left exactly as the Provider produced it.
+ * @param editing The Transcript being edited. If it already belongs to this
+ * author, the result updates it; otherwise the result is a new Transcript
+ * derived from it, and `editing` is left exactly as the Provider produced it.
  * @param turns The edited turns, in order.
  * @param now Supplied rather than read, so the result is testable.
+ * @param author Who wrote these words. Defaults to the user; an LLM cleaning
+ * up a transcript passes itself instead, because that is the **same operation
+ * by a different hand** rather than a second mechanism. One author field is
+ * what keeps §20 answerable either way.
  * @returns The Transcript to save.
  */
 export function editedTranscript(
   editing: Transcript,
   turns: EditableTurn[],
   now: Date,
+  author: EditAuthor = { kind: "user" },
 ): Transcript {
-  const source: TranscriptSource = { kind: "user" };
+  const source: TranscriptSource = author;
   const timestamp = now.toISOString();
 
   /*
@@ -103,10 +119,25 @@ export function editedTranscript(
         }))
       : undefined;
 
-  const alreadyMine = editing.source?.kind === "user";
+  /*
+   * "Already this author's" rather than "already edited". A user editing an
+   * LLM's cleanup must produce their **own** derived Transcript rather than
+   * overwriting the model's, or the record would claim the model wrote words
+   * the user typed — the same §20 failure this whole design exists to prevent,
+   * one layer in.
+   */
+  const existing = editing.source;
+  const alreadyMine =
+    existing?.kind === author.kind &&
+    (author.kind !== "llm" ||
+      (existing.kind === "llm" &&
+        existing.providerId === author.providerId &&
+        existing.modelId === author.modelId));
 
   return {
     // Editing their own edit again lands on the same record.
+    // Derived from the parent *and* the author, so a user's edit and an LLM's
+    // cleanup of the same Transcript never land on one another.
     id: alreadyMine ? editing.id : derivedTranscriptId(editing.id, source),
     recordingId: editing.recordingId,
     // Origin, carried forward unchanged: this text began as that model's work

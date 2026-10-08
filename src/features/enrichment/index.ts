@@ -4,7 +4,13 @@ export {
   readEnrichmentKey,
   writeEnrichmentKey,
 } from "./credentials";
+export {
+  cleanupAvailable,
+  cleanupTranscript,
+  type CleanupOutcome,
+} from "./cleanup";
 export { enrichTranscript, enrichmentInputFor, type EnrichOutcome } from "./enrich";
+export { resolveSelectedEnrichment } from "./provider";
 export {
   enrichmentFailure,
   type EnrichmentFailure,
