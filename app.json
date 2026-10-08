@@ -18,7 +18,12 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.unpocketed.app"
+      "package": "com.unpocketed.app",
+      "versionCode": 1,
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE"
+      ]
     },
     "web": {
       "output": "static",
@@ -42,7 +47,7 @@
         {
           "microphonePermission": "Unpocketed uses the microphone only to make recordings you start yourself. Recordings stay on this device.",
           "enableBackgroundRecording": true,
-          "enableBackgroundPlayback": true
+          "enableBackgroundPlayback": false
         }
       ],
       "expo-sqlite",
