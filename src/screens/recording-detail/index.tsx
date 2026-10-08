@@ -316,7 +316,15 @@ export function RecordingDetailScreen({ id }: { id: string }) {
             instead of taking our word for which recogniser is better. Hidden
             for an Interrupted Recording, whose audio no decoder can read.
           */}
-          {recording.interrupted ? null : (
+          {recording.interrupted || transcripts.length === 0 ? null : (
+            /*
+             * Hidden until there is something to retranscribe *from*. The
+             * action list renders in both branches of the empty-state ternary
+             * above, so without this gate a never-transcribed recording offers
+             * both "Transcribe" and "Retranscribe with another model" — and the
+             * second label is simply untrue there. §22 is about producing an
+             * additional transcript, which needs a first one to exist.
+             */
             <Action
               label={
                 transcribing

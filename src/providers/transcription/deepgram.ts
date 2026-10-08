@@ -130,10 +130,18 @@ export function messageForStatus(status: number): string {
  *
  * **The model that ran is not echoed back directly (§20).** Deepgram returns a
  * uuid in `metadata.models` and describes it in `metadata.model_info`, whose
- * `arch` is the field that matches what was requested. `name` is an internal
- * label — `2-general-nova` for a request that asked for `nova-3` — so
- * attributing a transcript from it would record a model the user never chose
- * and could not select again.
+ * `arch` is the field that looks like the id that was requested; `name` is an
+ * internal label, which would attribute a transcript to a model the user never
+ * chose and could not select again.
+ *
+ * **`arch` is the best available guess, not a verified contract.** The
+ * documented example carries `name: "2-general-nova"` beside `arch: "nova-3"`,
+ * which disagree with each other — `2-general-nova` is the nova-**2** label —
+ * so the example is unreliable about exactly this field. Nothing can break:
+ * `requestedModelId` is the fallback, and a transcript is still attributed. But
+ * the device test is asked to read the attribution off the screen and treat
+ * anything other than `nova-3` as a finding, because a value outside this
+ * provider's `models` list produces a chip the user can never select again.
  *
  * @param requestedModelId Falls back to what was asked for, because a
  * transcript that cannot say which model made it is worse than one that assumes

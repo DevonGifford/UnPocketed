@@ -163,11 +163,15 @@ async function finish(
 ): Promise<TranscribeOutcome> {
   if (!provider.resume) {
     /*
-     * A synchronous provider has nothing to re-attach to: the transcript came
-     * back in the reply to the request, and that reply is gone. Record it as
-     * the specific thing that happened rather than as `unknown` — the user
-     * needs to know the work may have been billed, which is the one fact a
-     * generic failure cannot convey.
+     * Unreachable for both providers v0.1 ships, and kept deliberately.
+     *
+     * This function is only called with a job reference in hand, and a
+     * provider that issues one implements `resume` — Deepgram issues none, so
+     * a stranded Deepgram job is failed by `reasonForMissingJobRef` at the two
+     * resume sites instead, which is the path to trace when debugging one.
+     * This branch covers a provider that hands back a reference and offers no
+     * way to ask after it, which is permitted by the interface and would
+     * otherwise wait on a `resume` that does not exist.
      */
     const failure = transcriptionFailure("interrupted-unresumable", true);
     recordFailure(job, failure);
