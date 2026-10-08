@@ -122,7 +122,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const {
     transcripts,
     state: transcriptionState,
-    busy: transcribing,
+
     failure: transcriptionFailure,
     transcribe,
     dismissFailure: dismissTranscriptionFailure,
@@ -317,7 +317,8 @@ export function RecordingDetailScreen({ id }: { id: string }) {
             <Text variant="body">{transcriptionFailure.detail}</Text>
             <View className="flex-row">
               <Action label="Dismiss" onPress={dismissTranscriptionFailure} />
-              {transcriptionFailure.retryable && !transcribing ? (
+              {transcriptionFailure.retryable &&
+              transcriptionState !== "transcribing" ? (
                 <Action label="Try again" onPress={transcribe} />
               ) : null}
             </View>
@@ -344,11 +345,13 @@ export function RecordingDetailScreen({ id }: { id: string }) {
              */
             <Action
               label={
-                transcribing
+                transcriptionState === "transcribing"
                   ? "Transcribing…"
                   : "Retranscribe with another model"
               }
-              onPress={transcribing ? undefined : openRetranscribe}
+              onPress={
+                transcriptionState === "transcribing" ? undefined : openRetranscribe
+              }
             />
           )}
           <Action label="Export transcript" />

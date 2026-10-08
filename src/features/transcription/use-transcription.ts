@@ -40,9 +40,19 @@ function ensureReconciled(force = false): void {
 export interface RecordingTranscription {
   transcripts: Transcript[];
   job: TranscriptionJob | null;
-  /** §21's state for this Recording, derived rather than stored. */
+  /**
+   * §21's state for this Recording, derived rather than stored.
+   *
+   * Reflects a transcription running in this screen immediately, without
+   * waiting for the stored job to be re-read — see the note where it is built.
+   */
   state: TranscriptionState;
-  /** Set while a transcription is running in *this* screen. */
+  /**
+   * Set while a transcription is running in *this* screen.
+   *
+   * Prefer {@link state} for anything user-facing: this one cannot tell that a
+   * transcription started elsewhere, or survived a remount, is still running.
+   */
   busy: boolean;
   failure: TranscriptionFailure | null;
   /** Starts, or retries, transcription. Ignored while one is running. */
@@ -170,7 +180,19 @@ export function useRecordingTranscription(
   return {
     transcripts,
     job,
-    state: transcriptionStateOf(job, transcripts.length),
+    /*
+     * `busy` is folded in rather than left as a second signal beside this one.
+     *
+     * The stored job is only re-read when a transcription *finishes*, so while
+     * one runs this derived from a job that still said `failed` or
+     * `not-transcribed` — and the screen showed "Try again" next to a spinner
+     * that never appeared, for a minute at a time. Two signals for one fact is
+     * how they end up disagreeing, and every consumer picked a different one.
+     *
+     * A transcription running in this screen *is* the recording transcribing,
+     * so saying so here is not a UI convenience; it is the state (§21).
+     */
+    state: busy ? "transcribing" : transcriptionStateOf(job, transcripts.length),
     busy,
     failure,
     transcribe,
