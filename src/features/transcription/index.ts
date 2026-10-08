@@ -25,6 +25,19 @@ export {
   type TranscriptionTarget,
 } from "./provider";
 export {
+  exportTranscript,
+  transcriptAsJson,
+  transcriptAsMarkdown,
+  transcriptAsText,
+  type ExportedFile,
+  type ExportFormat,
+} from "./export";
+export {
+  shareRecordingAudio,
+  shareTranscript,
+  type ShareOutcome,
+} from "./share";
+export {
   editableTurnsFor,
   editedTranscript,
   isProviderOutput,

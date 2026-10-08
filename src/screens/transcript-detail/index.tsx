@@ -1,12 +1,22 @@
 import { Pressable, ScrollView, View } from "react-native";
+import { useState } from "react";
 import { useRouter } from "expo-router";
+import { setStringAsync } from "expo-clipboard";
 import { Screen } from "@/components/screen";
 import { AppHeader } from "@/components/app-header";
 import { HudFrame } from "@/components/hud-frame";
 import { Text } from "@/components/ui/text";
 import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
 import { useRecording } from "@/features/library";
-import { isProviderOutput, useTranscript } from "@/features/transcription";
+import {
+  isProviderOutput,
+  shareTranscript,
+  transcriptAsText,
+  useTranscript,
+  type ExportFormat,
+  type ShareOutcome,
+} from "@/features/transcription";
+import { ExportPicker } from "@/components/export-picker";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
 
 /**
@@ -24,6 +34,9 @@ import { formatDuration, formatRecordedAt } from "@/lib/format";
 export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string }) {
   const router = useRouter();
   const { transcript } = useTranscript(transcriptId);
+  const [exporting, setExporting] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [failure, setFailure] = useState<ShareOutcome | null>(null);
   // Called unconditionally: the hook takes an id that may match nothing.
   const { recording } = useRecording(transcript?.recordingId ?? "");
 
@@ -87,7 +100,14 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
           <TranscriptBody transcript={transcript} />
         </View>
 
-        <View className="flex-row">
+        {failure?.status === "failed" ? (
+          <View className="gap-1 rounded-md border border-border bg-card p-4">
+            <Text variant="headline">{failure.title}</Text>
+            <Text variant="body">{failure.detail}</Text>
+          </View>
+        ) : null}
+
+        <View className="flex-row flex-wrap gap-2">
           <Pressable
             onPress={() => router.push(`/transcripts/${transcript.id}/edit`)}
             accessibilityRole="button"
@@ -97,6 +117,42 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
             <Text variant="body">
               {isProviderOutput(transcript) ? "Edit a copy" : "Edit"}
             </Text>
+          </Pressable>
+
+          {/*
+            §5 item 13 pairs copying with editing, and the text being
+            `selectable` only covers someone who knows to long-press. Copies the
+            words alone — pasting a transcript into a message should not paste a
+            provider name with it.
+          */}
+          <Pressable
+            onPress={() => {
+              setFailure(null);
+              void setStringAsync(transcriptAsText(transcript))
+                .then(() => setCopied(true))
+                .catch(() =>
+                  setFailure({
+                    status: "failed",
+                    title: "That could not be copied",
+                    detail:
+                      "Android would not accept the text. You can still select it above and copy by hand.",
+                  }),
+                );
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Copy transcript"
+            className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+          >
+            <Text variant="body">{copied ? "Copied" : "Copy"}</Text>
+          </Pressable>
+
+          <Pressable
+            onPress={() => setExporting(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Export transcript"
+            className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+          >
+            <Text variant="body">Export</Text>
           </Pressable>
         </View>
 
@@ -112,6 +168,18 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
           </Text>
         ) : null}
       </ScrollView>
+
+      <ExportPicker
+        open={exporting}
+        onOpenChange={setExporting}
+        onSelect={(format: ExportFormat) => {
+          setExporting(false);
+          setFailure(null);
+          void shareTranscript(transcript, recording ?? null, format).then(
+            (outcome) => setFailure(outcome.status === "failed" ? outcome : null),
+          );
+        }}
+      />
     </Screen>
   );
 }

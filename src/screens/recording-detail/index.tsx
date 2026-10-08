@@ -20,12 +20,17 @@ import {
   chooseProvider,
   currentSelection,
   deleteTranscript,
+  shareRecordingAudio,
+  shareTranscript,
+  type ExportFormat,
+  type ShareOutcome,
   deleteTranscriptsFor,
   listTranscriptionTargets,
   useRecordingTranscription,
   type TranscriptionTarget,
 } from "@/features/transcription";
 import { OptionPicker } from "@/components/option-picker";
+import { ExportPicker } from "@/components/export-picker";
 import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
 import { BusyIndicator } from "@/components/busy-indicator";
 import { PlaybackControls } from "@/components/playback-controls";
@@ -86,6 +91,8 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   // Which target a plain Transcribe would use, read when the picker opens
   // rather than during render — see the note in Settings about hoisting.
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [shareFailure, setShareFailure] = useState<ShareOutcome | null>(null);
 
   /*
    * A recovered recording's stored duration is estimated from its file size,
@@ -183,6 +190,26 @@ export function RecordingDetailScreen({ id }: { id: string }) {
       return;
     }
     transcribe();
+  };
+
+  /*
+   * Only a failure is surfaced. A share sheet that closes tells us nothing
+   * about whether anything was sent — Android does not say — so a success
+   * message would be a claim we cannot support (§3.7).
+   */
+  const report = (outcome: ShareOutcome) => {
+    setShareFailure(outcome.status === "failed" ? outcome : null);
+  };
+
+  const exportTranscriptAs = (format: ExportFormat) => {
+    setExporting(false);
+    if (!selected) return;
+    void shareTranscript(selected, recording, format).then(report);
+  };
+
+  const shareAudio = () => {
+    if (!recording) return;
+    void shareRecordingAudio(recording).then(report);
   };
 
   return (
@@ -311,6 +338,16 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           here says the recording is unaffected — §21 requires that to be true,
           and nothing in this feature writes to stored audio.
         */}
+        {shareFailure?.status === "failed" ? (
+          <View className="mx-4 mt-4 gap-2 rounded-md border border-border bg-card p-4">
+            <Text variant="headline">{shareFailure.title}</Text>
+            <Text variant="body">{shareFailure.detail}</Text>
+            <View className="flex-row">
+              <Action label="Dismiss" onPress={() => setShareFailure(null)} />
+            </View>
+          </View>
+        ) : null}
+
         {transcriptionFailure ? (
           <View className="mx-4 mt-4 gap-2 rounded-md border border-border bg-card p-4">
             <Text variant="headline">{transcriptionFailure.title}</Text>
@@ -354,8 +391,20 @@ export function RecordingDetailScreen({ id }: { id: string }) {
               }
             />
           )}
-          <Action label="Export transcript" />
-          <Action label="Share original audio" />
+          {/* Needs a transcript to export; hidden rather than disabled. */}
+          {selected ? (
+            <Action
+              label="Export transcript"
+              onPress={() => setExporting(true)}
+            />
+          ) : null}
+          {/*
+            Offered for an Interrupted Recording too, and deliberately: its
+            audio cannot be played here, so handing the raw file to a computer
+            is the only remaining route to it and §3.4 makes that the user's
+            right. The original is copied, never moved.
+          */}
+          <Action label="Share original audio" onPress={shareAudio} />
           {selected ? (
             <Action
               label="Delete transcript"
@@ -370,6 +419,12 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           />
         </View>
       </ScrollView>
+
+      <ExportPicker
+        open={exporting}
+        onOpenChange={setExporting}
+        onSelect={exportTranscriptAs}
+      />
 
       <OptionPicker
         open={retranscribing}
