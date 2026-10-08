@@ -33,15 +33,21 @@ export interface Recording {
  */
 export interface TranscriptSegment {
   /**
-   * Which speaker, as a 0-based index assigned in order of first appearance.
+   * Which speaker, as a 0-based index assigned in order of first appearance,
+   * or **null where the Provider did not say who spoke this turn**.
    *
    * A label inside this Transcript only — **not an identity**. Speaker 0 in one
    * Transcript is not the same person as speaker 0 in another, not even for the
    * same Recording transcribed twice. Providers disagree on how to spell it
    * (AssemblyAI gives `"A"`, Deepgram gives `0`), so adapters normalise to this
    * index rather than passing their own labels through.
+   *
+   * Null is not another speaker. An unattributed turn used to be given its own
+   * index, which rendered as one more person in the room who was never there —
+   * a claim the Provider had not made. Keeping the words while admitting the
+   * attribution is missing is the only option that invents nothing.
    */
-  speaker: number;
+  speaker: number | null;
   text: string;
   /** Offsets into the Recording, in milliseconds. Providers differ on units. */
   startMs: number;

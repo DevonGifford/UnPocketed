@@ -63,18 +63,31 @@ describe("toSegments", () => {
     ]);
   });
 
-  it("keeps an unlabelled turn rather than guessing who said it", () => {
-    // Only where *some* turn was attributed, so diarization clearly ran.
-    // Losing the words would be worse than an extra speaker bucket, and
-    // folding it into the previous speaker is the invention §10 forbids.
+  /*
+   * An unlabelled turn keeps its words and reports no speaker. Giving it an
+   * index of its own would put one more person in the room than the provider
+   * said was there, and dropping it would lose words the user paid for.
+   */
+  it("keeps an unlabelled turn without inventing a speaker for it", () => {
     const turns: RawTurn[] = [
       { speaker: "A", text: "Known.", start: 0, end: 1 },
       { speaker: null, text: "Unattributed.", start: 1, end: 2 },
+      { speaker: "B", text: "Also known.", start: 2, end: 3 },
     ];
     expect(toSegments(turns, millisecondsAreMilliseconds)).toEqual([
       { speaker: 0, text: "Known.", startMs: 0, endMs: 1 },
-      { speaker: 1, text: "Unattributed.", startMs: 1, endMs: 2 },
+      { speaker: null, text: "Unattributed.", startMs: 1, endMs: 2 },
+      { speaker: 1, text: "Also known.", startMs: 2, endMs: 3 },
     ]);
+  });
+
+  it("does not let an unattributed turn count as a speaker", () => {
+    const turns: RawTurn[] = [
+      { speaker: "A", text: "Mine.", start: 0, end: 1 },
+      { speaker: null, text: "Unknown.", start: 1, end: 2 },
+    ];
+    // One real speaker, so this is a voice memo with a gap, not a conversation.
+    expect(speakerCount(toSegments(turns, millisecondsAreMilliseconds))).toBe(1);
   });
 
   /*

@@ -387,8 +387,11 @@ interface Transcript {
 }
 
 interface TranscriptSegment {
-  /** A label inside this transcript only — never an identity. */
-  speaker: number;
+  /**
+   * A label inside this transcript only — never an identity. Null where the
+   * provider did not say who spoke this turn, which is not another speaker.
+   */
+  speaker: number | null;
   text: string;
   startMs: number;
   endMs: number;
