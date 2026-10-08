@@ -6,7 +6,11 @@ import {
   TranscriptionError,
   type TranscriptionProvider,
 } from "@/providers/transcription";
-import type { Transcript, TranscriptionJob } from "@/types";
+import type {
+  Transcript,
+  TranscriptionJob,
+  TranscriptSegment,
+} from "@/types";
 
 import { transcriptionFailure, type TranscriptionFailure } from "./errors";
 import { resolveProvider, resolveSelectedProvider } from "./provider";
@@ -137,7 +141,7 @@ function recordFailure(
 /** Turns a provider result into the Transcript that gets stored. */
 function transcriptFrom(
   job: TranscriptionJob,
-  result: { text: string; modelId: string },
+  result: { text: string; modelId: string; segments?: TranscriptSegment[] },
 ): Transcript {
   const timestamp = nowIso();
   return {
@@ -149,6 +153,13 @@ function transcriptFrom(
     // What actually ran (§20), which a provider may have substituted.
     modelId: result.modelId,
     text: result.text,
+    /*
+     * Spread so the key is absent rather than explicitly undefined. §10 makes
+     * absence mean "not asked for or not available", and a transcript that
+     * serialises `"segments": undefined` would lose that distinction on the
+     * round trip through JSON.
+     */
+    ...(result.segments?.length ? { segments: result.segments } : {}),
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -179,6 +190,11 @@ async function finish(
   }
 
   try {
+    /*
+     * No `diarize` here, and that is not an omission. Resuming re-reads a job
+     * the provider is already running; what it was asked for was decided when
+     * it was submitted, and sending a different answer now could not change it.
+     */
     const result = await provider.resume(jobRef, {
       modelId: job.modelId,
       signal,
@@ -209,7 +225,7 @@ export async function transcribeRecording(
   if (!selected) {
     return { status: "failed", failure: transcriptionFailure("not-configured", false) };
   }
-  const { provider, modelId } = selected;
+  const { provider, modelId, diarize } = selected;
 
   const recording = findRecording(recordingId);
   if (!recording) {
@@ -265,7 +281,14 @@ export async function transcribeRecording(
   }
 
   try {
-    return await runTranscription(provider, job, recording, audioFile, signal);
+    return await runTranscription(
+      provider,
+      job,
+      recording,
+      audioFile,
+      diarize,
+      signal,
+    );
   } finally {
     polling.delete(recordingId);
   }
@@ -277,6 +300,7 @@ async function runTranscription(
   started: TranscriptionJob,
   recording: { audioPath: string; mimeType: string },
   audioFile: File,
+  diarize: boolean,
   signal?: AbortSignal,
 ): Promise<TranscribeOutcome> {
   let job = started;
@@ -290,6 +314,7 @@ async function runTranscription(
       },
       {
         modelId: job.modelId,
+        diarize,
         signal,
         onJobRef: (jobRef) => {
           /*

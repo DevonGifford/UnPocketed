@@ -31,6 +31,13 @@ export interface ProviderDescriptor {
    * unreachable — so the gate asks this rather than assuming.
    */
   requiresApiKey: boolean;
+  /**
+   * What identifying speakers costs with this Provider, in plain words, or
+   * null where it costs nothing extra. Shown beside the toggle, because §19
+   * makes Settings disclose what a Provider charges for and a switch that
+   * quietly raises the bill is the same omission.
+   */
+  diarizationNotice: string | null;
   models: { id: string; name: string }[];
   defaultModelId: string;
 }
@@ -60,6 +67,7 @@ function describe(provider: TranscriptionProvider): ProviderDescriptor {
     keyUrl: provider.keyUrl,
     retentionNotice: provider.retentionNotice,
     requiresApiKey: provider.requiresApiKey,
+    diarizationNotice: provider.diarizationNotice,
     models: provider.models,
     defaultModelId: provider.defaultModelId,
   };

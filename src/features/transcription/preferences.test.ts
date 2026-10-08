@@ -1,4 +1,8 @@
-import { effectiveSelection, type TranscriptionPreferences } from "./preferences";
+import {
+  diarizeEnabled,
+  effectiveSelection,
+  type TranscriptionPreferences,
+} from "./preferences";
 import type { ProviderDescriptor } from "@/providers/transcription";
 
 const descriptor = (
@@ -11,6 +15,7 @@ const descriptor = (
   keyUrl: `https://example.test/${id}`,
   retentionNotice: "…",
   requiresApiKey: true,
+  diarizationNotice: null,
   models: models.map((model) => ({ id: model, name: model })),
   defaultModelId,
 });
@@ -28,7 +33,21 @@ const preferences = (
 ): TranscriptionPreferences => ({
   providerId: null,
   modelByProvider: {},
+  diarize: null,
   ...overrides,
+});
+
+describe("diarizeEnabled", () => {
+  it("is on when the user has never chosen", () => {
+    // Both providers v0.1 ships support it, and a conversation transcript that
+    // cannot say who spoke is the problem the setting exists to avoid.
+    expect(diarizeEnabled(preferences())).toBe(true);
+  });
+
+  it("honours an explicit choice either way", () => {
+    expect(diarizeEnabled(preferences({ diarize: false }))).toBe(false);
+    expect(diarizeEnabled(preferences({ diarize: true }))).toBe(true);
+  });
 });
 
 describe("effectiveSelection", () => {

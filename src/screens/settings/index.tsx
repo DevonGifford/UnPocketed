@@ -7,10 +7,14 @@ import { Text } from "@/components/ui/text";
 import { SettingRow } from "@/components/setting-row";
 import { ApiKeyDialog } from "@/components/api-key-dialog";
 import { OptionPicker } from "@/components/option-picker";
+import { ToggleRow } from "@/components/toggle-row";
 import {
+  chooseDiarize,
   chooseModel,
   chooseProvider,
   currentSelection,
+  diarizeEnabled,
+  readPreferences,
   maskApiKey,
   readApiKey,
   writeApiKey,
@@ -46,6 +50,7 @@ export function SettingsScreen() {
    * would leave Settings showing the old Provider after a switch.
    */
   const [selection, setSelection] = useState(() => currentSelection());
+  const [diarize, setDiarize] = useState(() => diarizeEnabled(readPreferences()));
 
   const providers = useMemo(() => listProviders(), []);
   const provider = useMemo(
@@ -56,6 +61,7 @@ export function SettingsScreen() {
   const refresh = useCallback(() => {
     const next = currentSelection();
     setSelection(next);
+    setDiarize(diarizeEnabled(readPreferences()));
 
     // The key is read for whichever Provider is now selected, so switching
     // shows that Provider's key rather than the previous one's.
@@ -127,6 +133,21 @@ export function SettingsScreen() {
             label="Model"
             value={modelName}
             onPress={provider ? () => setPicking("model") : undefined}
+          />
+          {/*
+            §10: speaker turns come from the Provider's own diarization. The
+            alternative — letting something downstream infer them from flat
+            text — means inventing who spoke, so if it is not asked for here it
+            cannot be recovered later without paying for the audio again.
+          */}
+          <ToggleRow
+            label="Identify speakers"
+            value={diarize}
+            detail={
+              provider?.diarizationNotice ??
+              "Separates a conversation into who said what."
+            }
+            onValueChange={(next) => commit(() => chooseDiarize(next))}
           />
           <SettingRow
             label="API key"

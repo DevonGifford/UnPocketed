@@ -8,6 +8,7 @@ import {
 
 import { readApiKey } from "./credentials";
 import {
+  diarizeEnabled,
   effectiveSelection,
   readPreferences,
   type TranscriptionSelection,
@@ -74,6 +75,7 @@ export async function resolveProvider(
 export async function resolveSelectedProvider(): Promise<{
   provider: TranscriptionProvider;
   modelId: string;
+  diarize: boolean;
 } | null> {
   const selection = currentSelection();
   if (!selection) return null;
@@ -81,7 +83,11 @@ export async function resolveSelectedProvider(): Promise<{
   const provider = await resolveProvider(selection.providerId);
   if (!provider) return null;
 
-  return { provider, modelId: selection.modelId };
+  return {
+    provider,
+    modelId: selection.modelId,
+    diarize: diarizeEnabled(readPreferences()),
+  };
 }
 
 /**

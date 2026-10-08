@@ -1,4 +1,8 @@
-import type { Transcript, TranscriptionJob } from "@/types";
+import type {
+  Transcript,
+  TranscriptionJob,
+  TranscriptSegment,
+} from "@/types";
 
 import { getDatabase } from "./database";
 
@@ -13,6 +17,8 @@ interface TranscriptRow {
   provider_id: string;
   model_id: string;
   text: string;
+  /** A JSON array of segments, or null where the transcript has none. */
+  segments: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -29,18 +35,42 @@ interface JobRow {
 }
 
 const TRANSCRIPT_COLUMNS =
-  "id, recording_id, provider_id, model_id, text, created_at, updated_at";
+  "id, recording_id, provider_id, model_id, text, segments, created_at, updated_at";
 
 const JOB_COLUMNS =
   "recording_id, provider_id, model_id, job_ref, state, error, created_at, updated_at";
 
+/**
+ * Reads the segments column.
+ *
+ * Unparseable JSON yields undefined rather than throwing: the transcript's
+ * text is the part the user paid for, and losing the whole row over malformed
+ * speaker turns would be the wrong trade. The sidecar is the durable copy, so
+ * the next reconcile repairs it.
+ */
+function segmentsFrom(stored: string | null): TranscriptSegment[] | undefined {
+  if (!stored) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed) && parsed.length > 0
+      ? (parsed as TranscriptSegment[])
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function toTranscript(row: TranscriptRow): Transcript {
+  const segments = segmentsFrom(row.segments);
   return {
     id: row.id,
     recordingId: row.recording_id,
     providerId: row.provider_id,
     modelId: row.model_id,
     text: row.text,
+    // Spread so the key is absent rather than explicitly undefined, keeping
+    // `segments` in a row and in a sidecar the same shape.
+    ...(segments ? { segments } : {}),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -95,12 +125,13 @@ export function getTranscript(id: string): Transcript | null {
 export function upsertTranscript(transcript: Transcript): void {
   getDatabase().runSync(
     `INSERT INTO transcripts (${TRANSCRIPT_COLUMNS})
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
        recording_id = excluded.recording_id,
        provider_id = excluded.provider_id,
        model_id = excluded.model_id,
        text = excluded.text,
+       segments = excluded.segments,
        created_at = excluded.created_at,
        updated_at = excluded.updated_at`,
     transcript.id,
@@ -108,6 +139,9 @@ export function upsertTranscript(transcript: Transcript): void {
     transcript.providerId,
     transcript.modelId,
     transcript.text,
+    transcript.segments?.length
+      ? JSON.stringify(transcript.segments)
+      : null,
     transcript.createdAt,
     transcript.updatedAt,
   );

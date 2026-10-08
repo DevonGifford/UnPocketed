@@ -1,6 +1,11 @@
 import { File, UploadType } from "expo-file-system";
 
 import {
+  secondsToMilliseconds,
+  toSegments,
+  type RawTurn,
+} from "./speakers";
+import {
   TranscriptionError,
   type AudioSource,
   type TranscriptionErrorKind,
@@ -73,6 +78,18 @@ interface ListenResponse {
     channels?: {
       alternatives?: { transcript?: string | null }[];
     }[];
+    /**
+     * Present only when `utterances=true` was sent, and carrying `speaker` only
+     * when `diarize=true` went with it. Sits beside `channels` rather than
+     * inside one, and names the text `transcript` where AssemblyAI says `text`.
+     * Offsets are **float seconds**, not milliseconds.
+     */
+    utterances?: {
+      speaker?: number | null;
+      transcript?: string | null;
+      start?: number | null;
+      end?: number | null;
+    }[] | null;
   };
 }
 
@@ -177,7 +194,22 @@ export function readListenResponse(
   const uuid = parsed.metadata?.models?.[0];
   const arch = uuid ? parsed.metadata?.model_info?.[uuid]?.arch : undefined;
 
-  return { text: transcript, modelId: arch ?? requestedModelId };
+  // `transcript` renamed to `text`, and float seconds converted — the two ways
+  // Deepgram's utterances differ from AssemblyAI's beyond the speaker label.
+  const turns: RawTurn[] | undefined = parsed.results?.utterances?.map(
+    (utterance) => ({
+      speaker: utterance.speaker,
+      text: utterance.transcript,
+      start: utterance.start,
+      end: utterance.end,
+    }),
+  );
+
+  return {
+    text: transcript,
+    modelId: arch ?? requestedModelId,
+    segments: toSegments(turns, secondsToMilliseconds),
+  };
 }
 
 /** Builds the provider around a key the caller has already read from storage. */
@@ -198,6 +230,9 @@ export function createDeepgram(apiKey: string): TranscriptionProvider {
       supportsDiarization: true,
     },
     requiresApiKey: true,
+    // Deepgram's pricing lists no separate charge for diarization.
+    diarizationNotice: null,
+
     // Pre-recorded models only. Deepgram's current flagship, `flux-general-en`,
     // is a conversational model for voice agents and belongs to the streaming
     // API, so it is not offered here.
@@ -251,6 +286,17 @@ async function send(
     // Punctuation and capitalisation, so a Deepgram transcript is comparable
     // with an AssemblyAI one rather than arriving as an unbroken lower-case run.
     smart_format: "true",
+    /*
+     * Two parameters, both required. `diarize` alone attributes individual
+     * *words* and leaves the grouping to us; `utterances` alone groups speech
+     * into turns with no speaker on them. Only together do they produce turns
+     * that say who spoke, which is what §10's segments are.
+     *
+     * Sent only when asked for. Deepgram documents no add-on charge for either,
+     * unlike AssemblyAI — but a user who turned speaker identification off
+     * should not have it requested on their behalf.
+     */
+    ...(options.diarize ? { diarize: "true", utterances: "true" } : {}),
   });
 
   /*

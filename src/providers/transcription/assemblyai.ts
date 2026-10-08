@@ -1,6 +1,11 @@
 import { File, UploadType } from "expo-file-system";
 
 import {
+  millisecondsAreMilliseconds,
+  toSegments,
+  type RawTurn,
+} from "./speakers";
+import {
   TranscriptionAborted,
   TranscriptionError,
   type AudioSource,
@@ -57,6 +62,8 @@ interface TranscriptResponse {
   text?: string | null;
   error?: string | null;
   speech_model_used?: string | null;
+  /** Present only when `speaker_labels` was requested. Offsets are in ms. */
+  utterances?: RawTurn[] | null;
 }
 
 function delay(ms: number): Promise<void> {
@@ -223,6 +230,8 @@ async function awaitCompletion(
         text: job.text ?? "",
         // What actually ran, not what was asked for (§20).
         modelId: job.speech_model_used ?? modelId,
+        // Already milliseconds here; Deepgram's are float seconds.
+        segments: toSegments(job.utterances, millisecondsAreMilliseconds),
       };
     }
 
@@ -247,8 +256,21 @@ async function submit(
 ): Promise<string> {
   const job = await request<TranscriptResponse>("/transcript", apiKey, {
     method: "POST",
-    // `speech_models` plural: the singular form this replaced is streaming-only.
-    body: { audio_url: audioUrl, speech_models: [options.modelId] },
+    body: {
+      audio_url: audioUrl,
+      // `speech_models` plural: the singular form this replaced is streaming-only.
+      speech_models: [options.modelId],
+      /*
+       * Sent only when asked for, and never defaulted on. AssemblyAI bills
+       * diarization as an add-on — +$0.02/hr against universal-2's $0.15 — so
+       * requesting it unasked would raise the user's bill by about 13% for
+       * speaker labels a solo voice memo cannot use.
+       *
+       * Deliberately no `speakers_expected`: AssemblyAI's docs say to set it
+       * only when the count is certain, and Unpocketed never is.
+       */
+      ...(options.diarize ? { speaker_labels: true } : {}),
+    },
     signal: options.signal,
   });
 
@@ -273,6 +295,9 @@ export function createAssemblyAI(apiKey: string): TranscriptionProvider {
       supportsDiarization: true,
     },
     requiresApiKey: true,
+    diarizationNotice:
+      "AssemblyAI charges extra to identify speakers — about $0.02 per hour on top of the model's own rate.",
+
     models: [
       { id: "universal-2", name: "Universal-2" },
       { id: "universal-3-5-pro", name: "Universal-3.5 Pro" },

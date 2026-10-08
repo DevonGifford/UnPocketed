@@ -15,6 +15,8 @@
  * needs an upload split across requests.
  */
 
+import type { TranscriptSegment } from "@/types";
+
 /** What a provider can take, so callers can ask before spending an upload. */
 export interface ProviderCapabilities {
   maxUploadBytes?: number;
@@ -42,6 +44,19 @@ export interface TranscriptionOptions {
   /** The model to request. Providers that expose only one may ignore it. */
   modelId: string;
   /**
+   * Ask the provider to attribute speech to speakers.
+   *
+   * A request, not a guarantee: a provider that cannot diarize ignores it, and
+   * one that can may still return nothing usable for single-speaker audio.
+   * Callers therefore check {@link TranscriptionResult.segments} rather than
+   * assuming this was honoured.
+   *
+   * It is a per-request option rather than a provider-level setting because it
+   * **costs money** at some providers — AssemblyAI bills it as an add-on — so
+   * the user decides, and the decision has to reach the request.
+   */
+  diarize?: boolean;
+  /**
    * Called once, as soon as the provider issues a job reference, and before
    * any polling. The caller is expected to persist it **synchronously** —
    * `features/transcription/transcribe.ts` explains what that buys.
@@ -53,6 +68,19 @@ export interface TranscriptionOptions {
 
 export interface TranscriptionResult {
   text: string;
+  /**
+   * Speaker-attributed turns, when diarization was asked for and produced some.
+   *
+   * Adapters normalise the speaker label to a 0-based index in order of first
+   * appearance, and timings to milliseconds, because providers agree on
+   * neither — AssemblyAI labels speakers `"A"`/`"B"` and reports milliseconds,
+   * Deepgram labels them `0`/`1` and reports float seconds. Normalising here
+   * keeps both out of the domain (§3.3).
+   *
+   * Omitted rather than empty when there is nothing to report, so "not asked
+   * for" and "one speaker throughout" stay distinguishable.
+   */
+  segments?: TranscriptSegment[];
   /**
    * The model that actually ran, which is not always the one requested — a
    * provider may fall back. §20 requires a transcript to answer "which provider
@@ -164,6 +192,16 @@ export interface TranscriptionProvider {
    * because "sent" and "kept" are different promises.
    */
   retentionNotice: string;
+  /**
+   * What asking for diarization costs with this provider, in plain words, or
+   * null where it costs nothing extra.
+   *
+   * Lives on the provider rather than in Settings' copy because it is a
+   * provider-specific fact, and §3.3 keeps those inside this folder. §19
+   * already makes Settings disclose what a provider charges for; a toggle that
+   * silently raises the bill would be the same omission.
+   */
+  diarizationNotice: string | null;
 
   /**
    * Transcribes audio, start to finish.

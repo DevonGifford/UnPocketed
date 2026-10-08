@@ -40,6 +40,20 @@ export interface TranscriptionPreferences {
    * to compare is the capability PR8 exists to deliver (§22).
    */
   modelByProvider: Record<string, string>;
+  /**
+   * Whether to ask the Provider to attribute speech to speakers (§10).
+   *
+   * Not per Provider, because it is a statement about what the user wants from
+   * a transcript rather than about any one service — and asking them to set it
+   * twice to compare two Providers on the same recording would defeat §22.
+   *
+   * Null means never chosen, which resolves to on: the Providers v0.1 ships
+   * both support it, and a transcript of a conversation that cannot say who
+   * spoke is the problem this setting exists to avoid. It is a choice rather
+   * than always-on because AssemblyAI bills it as an add-on, and a solo voice
+   * memo should not quietly cost more for labels it cannot use.
+   */
+  diarize: boolean | null;
 }
 
 /** The effective Provider and Model, after the stored choice is validated. */
@@ -51,7 +65,18 @@ export interface TranscriptionSelection {
 const EMPTY: TranscriptionPreferences = {
   providerId: null,
   modelByProvider: {},
+  diarize: null,
 };
+
+/** What {@link TranscriptionPreferences.diarize} means when never chosen. */
+export const DIARIZE_BY_DEFAULT = true;
+
+/** Whether to request speaker attribution, resolving the unset case. */
+export function diarizeEnabled(
+  preferences: TranscriptionPreferences,
+): boolean {
+  return preferences.diarize ?? DIARIZE_BY_DEFAULT;
+}
 
 function settingsFile(): File {
   return new File(Paths.document, FILE_NAME);
@@ -82,7 +107,10 @@ function parse(raw: unknown): TranscriptionPreferences {
     }
   }
 
-  return { providerId, modelByProvider };
+  const diarize =
+    typeof record.diarize === "boolean" ? record.diarize : null;
+
+  return { providerId, modelByProvider, diarize };
 }
 
 /*
@@ -154,6 +182,15 @@ export function chooseModel(providerId: string, modelId: string): void {
     ...current,
     modelByProvider: { ...current.modelByProvider, [providerId]: modelId },
   });
+}
+
+/**
+ * Records whether the user wants speakers identified (§10).
+ *
+ * @throws If the choice cannot be stored.
+ */
+export function chooseDiarize(diarize: boolean): void {
+  writePreferences({ ...readPreferences(), diarize });
 }
 
 /**

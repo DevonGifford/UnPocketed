@@ -6,8 +6,10 @@ export {
   type TranscriptionFailureReason,
 } from "./errors";
 export {
+  chooseDiarize,
   chooseModel,
   chooseProvider,
+  diarizeEnabled,
   effectiveSelection,
   readPreferences,
   resetPreferencesCache,

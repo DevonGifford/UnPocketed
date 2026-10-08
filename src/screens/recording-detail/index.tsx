@@ -26,6 +26,7 @@ import {
   type TranscriptionTarget,
 } from "@/features/transcription";
 import { OptionPicker } from "@/components/option-picker";
+import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
 import { PlaybackControls } from "@/components/playback-controls";
 import { InterruptedNotice } from "@/components/interrupted-notice";
 import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
@@ -280,10 +281,9 @@ export function RecordingDetailScreen({ id }: { id: string }) {
                 {/* §20: a transcript must always say which provider and model made it. */}
                 <Text variant="caption">
                   {selected.providerId} · {selected.modelId}
+                  {speakerSummary(selected) ? ` · ${speakerSummary(selected)}` : ""}
                 </Text>
-                <Text variant="body" selectable>
-                  {selected.text}
-                </Text>
+                <TranscriptBody transcript={selected} />
               </View>
             ) : null}
           </>

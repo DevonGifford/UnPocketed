@@ -58,6 +58,18 @@ The specific speech-to-text model used within a Provider. Selected independently
 Scoped to transcription on purpose. It does not mean any model Unpocketed might one day send text to — only the one that turned audio into this Transcript's words.
 _Avoid_: engine, algorithm, version
 
+**Segment**:
+One continuous stretch of speech within a Transcript attributed to a single Speaker, with its offsets into the Recording. A Transcript has either none or several — never exactly one meaningful turn.
+_Avoid_: utterance (that is the providers' word), turn, chunk, line, block, bubble
+
+**Speaker**:
+A participant in a Recording, as separated by the Provider's diarization. Identified by a 0-based index within one Transcript and **nothing more** — it is a label, not a person: Speaker 1 in one Transcript is not the same human as Speaker 1 in another, even for the same Recording. Unpocketed never infers a Speaker from text and never names one.
+_Avoid_: participant, person, voice, user, channel
+
+**Diarization**:
+The Provider's separation of a Recording into Speakers. Requested per transcription and chargeable at some Providers, so it is the user's choice rather than always on.
+_Avoid_: speaker detection, speaker ID, voice recognition (that implies identifying *who*, which this does not do)
+
 ### Ownership
 
 **Export**:

@@ -23,12 +23,55 @@ export interface Recording {
   interrupted: boolean;
 }
 
+/**
+ * One continuous stretch of speech attributed to one speaker (§10).
+ *
+ * Produced by the Provider's own diarization, never inferred afterwards. That
+ * distinction is load-bearing: a later layer may reformat or clean these turns,
+ * but deciding *who spoke* from flat text means guessing at boundaries, and a
+ * confident guess is worse than no answer.
+ */
+export interface TranscriptSegment {
+  /**
+   * Which speaker, as a 0-based index assigned in order of first appearance.
+   *
+   * A label inside this Transcript only — **not an identity**. Speaker 0 in one
+   * Transcript is not the same person as speaker 0 in another, not even for the
+   * same Recording transcribed twice. Providers disagree on how to spell it
+   * (AssemblyAI gives `"A"`, Deepgram gives `0`), so adapters normalise to this
+   * index rather than passing their own labels through.
+   */
+  speaker: number;
+  text: string;
+  /** Offsets into the Recording, in milliseconds. Providers differ on units. */
+  startMs: number;
+  endMs: number;
+}
+
 export interface Transcript {
   id: string;
   recordingId: string;
   providerId: string;
   modelId: string;
+  /**
+   * The whole transcript as plain text.
+   *
+   * Kept as the primary form even where {@link segments} exists, rather than
+   * being derived from it on demand. §3.4 promises plain-text export, this is
+   * what the index stores and what a Provider without diarization returns — so
+   * every Transcript has one, and nothing has to special-case its absence.
+   */
   text: string;
+  /**
+   * Speaker-attributed turns, when the Provider was asked for them and
+   * produced them.
+   *
+   * Optional on purpose, and in three different ways: diarization is a setting
+   * the user can turn off, it costs extra at some Providers, and a Transcript
+   * written before this existed has none. Absent means "not asked for or not
+   * available", never "one speaker".
+   */
+  segments?: TranscriptSegment[];
   createdAt: string;
   updatedAt: string;
 }
