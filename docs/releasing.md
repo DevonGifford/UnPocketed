@@ -23,7 +23,7 @@ keytool -genkeypair -v \
   -validity 10000
 ```
 
-Then tell Gradle where it is, in `android/keystore.properties`:
+Then tell Gradle where it is, in `keystore.properties` at the **repository root**:
 
 ```properties
 storeFile=/home/you/keys/unpocketed-release.jks
@@ -38,7 +38,7 @@ keyPassword=…
 > sideload. A new key is a new app, and every existing install is stranded.
 > Keep the passwords somewhere that survives the machine.
 
-`android/` is gitignored in its entirety, so neither the properties file nor a keystore inside it can be committed. Keep the `.jks` itself outside the repository anyway.
+The repository root, not `android/`: step 2 below starts with `expo prebuild --clean`, which **deletes that directory**, so a properties file kept inside it would be destroyed by the first step of every build. `keystore.properties` is gitignored, and `storeFile` is an absolute path so the `.jks` itself lives outside the repository entirely.
 
 ---
 
@@ -78,6 +78,16 @@ Confirm it is signed with the release key and not the debug one:
 ```
 
 The certificate's DN must be yours. `CN=Android Debug, OU=Android, O=Android` means the guard was bypassed and the artifact must not be published.
+
+Check what the APK actually asks for, which is the **merged** manifest rather than the one prebuild writes:
+
+```bash
+cd android && ./gradlew :app:processReleaseManifest
+grep -oE 'android:name="android.permission[^"]*"' \
+  android/app/build/intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml | sort -u
+```
+
+Expect one foreground service (`microphone`) and no `SYSTEM_ALERT_WINDOW`, `VIBRATE` or `FOREGROUND_SERVICE_MEDIA_PLAYBACK`. Four entries come from libraries rather than from `app.json` and cannot be read as choices: `ACCESS_NETWORK_STATE`, `WAKE_LOCK`, and `USE_BIOMETRIC`/`USE_FINGERPRINT` from `expo-secure-store`. All four are normal permissions with no runtime prompt, and they still appear in a Play listing.
 
 Then install it on a device that has never had a development build, and walk §39's four promises: record, keep, transcribe, export. The release build is minified and uses a different JS bundle from the one you develop against, so this is not a formality.
 

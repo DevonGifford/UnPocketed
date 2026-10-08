@@ -1527,9 +1527,11 @@ source — scheme persistence, the WCAG contrast failures, and a permissions tri
 leaves one foreground service where the template shipped two.
 
 **The exit condition is not met, and cannot be met from a keyboard.** It names a
-stranger installing an APK, and no APK has been built: the signing guard has been
-proven to refuse without a keystore but has never signed anything, and no Android
-device was attached for any of this work. The icon and splash are also still the Expo
+stranger installing an APK, and no APK has been built. The release configuration is
+proven as far as a keyboard reaches — the merged release manifest was read from the
+build and the signing config validated against a throwaway keystore — but no Android
+device was attached for any of this work, so playback and every visual change remain
+arguments rather than observations. The icon and splash are also still the Expo
 template's, deliberately — the project logo is a wordmark and a wordmark at 48dp is
 unreadable, so the mark is a design decision rather than a crop. `docs/artwork.md`
 lists what has to replace them. The decision map records what has not been exercised,
