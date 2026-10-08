@@ -141,6 +141,35 @@ describe("transcriptAsMarkdown", () => {
     expect(md).toContain("**Speaker 2** (0:27)");
   });
 
+  /*
+   * Found in the first real export. Deepgram splits one speaker's sentence
+   * across several turns, which produced three "**Speaker 2**" headings in a
+   * row for one person talking.
+   */
+  it("gives one heading per speaker, not per provider chunk", () => {
+    const fragmented = transcript({
+      text: "Welcome to the show today with me. Thanks for having me.",
+      segments: [
+        turn(0, "Welcome to the show", 0),
+        turn(0, "today with me.", 2000),
+        turn(1, "Thanks for having me.", 5000),
+      ],
+    });
+    const md = transcriptAsMarkdown(fragmented, recording());
+    expect(md.match(/\*\*Speaker 1\*\*/g)).toHaveLength(1);
+    expect(md).toContain("Welcome to the show today with me.");
+  });
+
+  it("groups the same way in plain text", () => {
+    const fragmented = transcript({
+      text: "One two. Three.",
+      segments: [turn(0, "One", 0), turn(0, "two.", 1000), turn(1, "Three.", 2000)],
+    });
+    expect(transcriptAsText(fragmented)).toBe(
+      "Speaker 1: One two.\n\nSpeaker 2: Three.",
+    );
+  });
+
   it("survives a transcript whose recording is gone", () => {
     const md = transcriptAsMarkdown(transcript(), null);
     expect(md).toContain("# Transcript");

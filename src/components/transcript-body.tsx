@@ -1,7 +1,11 @@
 import { View } from "react-native";
 
 import { Text } from "@/components/ui/text";
-import { readingViewFor } from "@/features/transcription/reading";
+import {
+  groupedTurns,
+  readingViewFor,
+  speakerLabel,
+} from "@/features/transcription/reading";
 import { speakerCount } from "@/providers/transcription/speakers";
 import { formatDuration } from "@/lib/format";
 import type { Transcript } from "@/types";
@@ -29,55 +33,32 @@ export function TranscriptBody({ transcript }: { transcript: Transcript }) {
     );
   }
 
+  /*
+   * Grouped by `groupedTurns`, the same function the exports use. It used to be
+   * done here with a `continues` flag, which meant the screen read as a
+   * conversation while an exported file repeated "Speaker 2" three times for
+   * one person — the same data following two different rules.
+   */
   return (
     <View className="gap-4">
-      {view.segments.map((segment, index) => {
-        /*
-         * Consecutive turns by one speaker are grouped under a single heading,
-         * which is how a conversation reads rather than how a provider chunks
-         * it — Deepgram emits several turns per sentence where AssemblyAI emits
-         * one per speaker change.
-         *
-         * An unattributed turn never continues the previous speaker, however
-         * closely it follows: that would attribute it to them.
-         */
-        const previous = index > 0 ? view.segments[index - 1] : null;
-        const continues =
-          previous !== null &&
-          segment.speaker !== null &&
-          previous.speaker === segment.speaker;
-
-        return (
-          <View
-            key={`${segment.startMs}-${index}`}
-            className={continues ? "-mt-3 gap-1" : "gap-1"}
-          >
-            {continues ? null : (
-              <View className="flex-row items-baseline gap-2">
-                <Text
-                  variant="caption"
-                  className={segment.speaker === null ? "" : "text-primary"}
-                >
-                  {/*
-                    Not "Speaker 3". The provider did not say who spoke this
-                    turn, and inventing one more person in the room is the
-                    claim §10 forbids. Saying so plainly costs a longer label.
-                  */}
-                  {segment.speaker === null
-                    ? "Speaker not identified"
-                    : `Speaker ${segment.speaker + 1}`}
-                </Text>
-                <Text variant="caption" className="tabular-nums">
-                  {formatDuration(segment.startMs)}
-                </Text>
-              </View>
-            )}
-            <Text variant="body" selectable>
-              {segment.text}
+      {groupedTurns(view.segments).map((block, index) => (
+        <View key={`${block.startMs}-${index}`} className="gap-1">
+          <View className="flex-row items-baseline gap-2">
+            <Text
+              variant="caption"
+              className={block.speaker === null ? "" : "text-primary"}
+            >
+              {speakerLabel(block.speaker)}
+            </Text>
+            <Text variant="caption" className="tabular-nums">
+              {formatDuration(block.startMs)}
             </Text>
           </View>
-        );
-      })}
+          <Text variant="body" selectable>
+            {block.text}
+          </Text>
+        </View>
+      ))}
     </View>
   );
 }

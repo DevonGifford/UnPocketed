@@ -1,6 +1,6 @@
 import type { Recording, Transcript } from "@/types";
 
-import { readingViewFor } from "./reading";
+import { groupedTurns, readingViewFor, speakerLabel } from "./reading";
 
 /*
  * Exporting a Transcript (§3.4, §24).
@@ -76,14 +76,10 @@ export function transcriptAsText(transcript: Transcript): string {
   const view = readingViewFor(transcript);
   if (view.kind === "text") return view.text;
 
-  return view.segments
-    .map((segment) => {
-      const who =
-        segment.speaker === null
-          ? "Speaker not identified"
-          : `Speaker ${segment.speaker + 1}`;
-      return `${who}${":"} ${segment.text}`;
-    })
+  // Grouped, so one person talking reads as one block rather than as however
+  // many pieces the provider happened to cut their speech into.
+  return groupedTurns(view.segments)
+    .map((block) => `${speakerLabel(block.speaker)}${":"} ${block.text}`)
     .join("\n\n");
 }
 
@@ -122,12 +118,13 @@ export function transcriptAsMarkdown(
   if (view.kind === "text") {
     lines.push(view.text);
   } else {
-    for (const segment of view.segments) {
-      const who =
-        segment.speaker === null
-          ? "Speaker not identified"
-          : `Speaker ${segment.speaker + 1}`;
-      lines.push(`**${who}** (${duration(segment.startMs)})`, "", segment.text, "");
+    for (const block of groupedTurns(view.segments)) {
+      lines.push(
+        `**${speakerLabel(block.speaker)}** (${duration(block.startMs)})`,
+        "",
+        block.text,
+        "",
+      );
     }
   }
 

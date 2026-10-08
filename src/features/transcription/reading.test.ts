@@ -1,4 +1,9 @@
-import { readingViewFor, segmentsCoverText } from "./reading";
+import {
+  groupedTurns,
+  readingViewFor,
+  segmentsCoverText,
+  speakerLabel,
+} from "./reading";
 import type { Transcript, TranscriptSegment } from "@/types";
 
 const turn = (
@@ -70,6 +75,64 @@ describe("segmentsCoverText", () => {
 
   it("treats an empty transcript as covered", () => {
     expect(segmentsCoverText("", [turn(0, "")])).toBe(true);
+  });
+});
+
+describe("groupedTurns", () => {
+  /*
+   * The case found in a real export. Deepgram cut one speaker's sentence into
+   * three turns, and the Markdown repeated "**Speaker 2**" three times for one
+   * person talking — while the screen, which grouped them, read correctly.
+   */
+  it("merges consecutive turns by the same speaker", () => {
+    expect(
+      groupedTurns([
+        turn(1, "Alright. Welcome to the show.", 8000),
+        turn(1, "Today with me, we have a", 12000),
+        turn(1, "returning guest.", 13000),
+        turn(0, "Thanks for having me.", 21000),
+      ]),
+    ).toEqual([
+      {
+        speaker: 1,
+        startMs: 8000,
+        text: "Alright. Welcome to the show. Today with me, we have a returning guest.",
+      },
+      { speaker: 0, startMs: 21000, text: "Thanks for having me." },
+    ]);
+  });
+
+  it("keeps the first turn's start time for the block", () => {
+    const [block] = groupedTurns([turn(0, "One.", 5000), turn(0, "Two.", 9000)]);
+    expect(block.startMs).toBe(5000);
+  });
+
+  it("never merges an unattributed turn into a neighbour", () => {
+    // Folding it in would attribute those words to someone the provider never
+    // said spoke them.
+    expect(
+      groupedTurns([
+        turn(0, "Mine.", 0),
+        turn(null, "Unknown.", 1000),
+        turn(0, "Mine again.", 2000),
+      ]).map((block) => block.speaker),
+    ).toEqual([0, null, 0]);
+  });
+
+  it("does not merge two unattributed turns with each other", () => {
+    expect(
+      groupedTurns([turn(null, "One.", 0), turn(null, "Two.", 1000)]),
+    ).toHaveLength(2);
+  });
+});
+
+describe("speakerLabel", () => {
+  it("numbers speakers from one for a reader", () => {
+    expect(speakerLabel(0)).toBe("Speaker 1");
+  });
+
+  it("says a turn was not attributed rather than numbering it", () => {
+    expect(speakerLabel(null)).toBe("Speaker not identified");
   });
 });
 

@@ -22,6 +22,57 @@ import type { Transcript, TranscriptSegment } from "@/types";
  */
 const REQUIRED_COVERAGE = 0.98;
 
+/** Consecutive turns by one speaker, read as the single turn they were. */
+export interface SpeakerBlock {
+  speaker: number | null;
+  /** When this speaker started, which is the first turn's start. */
+  startMs: number;
+  text: string;
+}
+
+/**
+ * Merges consecutive turns by the same speaker.
+ *
+ * Providers chunk speech very differently — on one 75-second recording Deepgram
+ * returned 14 turns, fragmenting mid-sentence, where AssemblyAI returned 6 — so
+ * rendering one heading per turn produces three "Speaker 2" labels in a row for
+ * one person talking. Grouping is what makes a conversation read as a
+ * conversation rather than as the provider's internal segmentation.
+ *
+ * An **unattributed** turn never merges, in either direction: folding it into a
+ * neighbour would attribute it to them, which is the claim §10 forbids.
+ */
+export function groupedTurns(segments: TranscriptSegment[]): SpeakerBlock[] {
+  const blocks: SpeakerBlock[] = [];
+
+  for (const segment of segments) {
+    const last = blocks[blocks.length - 1];
+    const continues =
+      last !== undefined &&
+      segment.speaker !== null &&
+      last.speaker === segment.speaker;
+
+    if (continues) {
+      last.text = `${last.text} ${segment.text}`.trim();
+    } else {
+      blocks.push({
+        speaker: segment.speaker,
+        startMs: segment.startMs,
+        text: segment.text,
+      });
+    }
+  }
+
+  return blocks;
+}
+
+/** How a speaker is named in text the user reads or exports. */
+export function speakerLabel(speaker: number | null): string {
+  // Not "Speaker 3" for an unattributed turn: the provider did not say who
+  // spoke it, and numbering it would invent one more person in the room.
+  return speaker === null ? "Speaker not identified" : `Speaker ${speaker + 1}`;
+}
+
 export type ReadingView =
   /** Speaker-attributed turns, which together account for the whole text. */
   | { kind: "turns"; segments: TranscriptSegment[] }
