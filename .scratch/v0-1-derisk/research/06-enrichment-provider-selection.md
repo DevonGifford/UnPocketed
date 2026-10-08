@@ -100,6 +100,39 @@ Quality of summarisation is unmeasured and these three are close enough that it 
 unmeasured — which is itself an argument for shipping two and letting §22's comparison
 settle it, exactly as the transcription providers were left.
 
+## Decision (2026-10-08, Devon's call)
+
+**Anthropic first, Gemini second, an OpenAI-compatible endpoint third.**
+
+Gemini moves up from "deferred third" to second, on a reason the research did not weigh:
+**a free tier is worth having for development.** Testing enrichment against a paid Anthropic
+or OpenAI account on every run is a real cost on the person building it, and Gemini removes
+it. That it also stresses the abstraction hardest makes it the better second regardless — the
+original recommendation under-weighted the builder's own position.
+
+**The free tier ships, with the condition stated where the choice is made.** Two things make
+that defensible rather than a quiet compromise:
+
+1. It is **opt-in per provider**, chosen deliberately in Settings, not a default.
+2. The mechanism already exists. §19 made Settings disclose what a provider does with what it
+   is sent, and PR8 built `retentionNotice` for exactly that.
+
+**But the notice cannot state a fact, and this is the part worth getting right.** Gemini's
+tier is a property of the **Google Cloud project's billing status, not the API key** — rate
+limits are "applied per project, not per API key" — and nothing in the API reports which tier
+a key is on. So Unpocketed **cannot tell** whether a given Gemini key trains Google's models
+or not. Every other provider's notice states what happens; this one has to state a condition
+the user resolves themselves, and say plainly that the app cannot resolve it for them.
+
+Disclosed in two places, both already built:
+
+- the **provider picker's** per-option detail line, at the moment of choosing;
+- the fuller **`retentionNotice`** in Settings, which names the condition and how to check it.
+
+**Scope:** Anthropic and Gemini together satisfy PR 9.5's exit condition. The
+OpenAI-compatible endpoint is third and **may slip**, as it did from PR8 — recorded here so
+that slipping is a known outcome rather than a quiet omission.
+
 ## Not examined
 
 Mistral, Cohere, Llama via a host, and any self-hosted model other than through the

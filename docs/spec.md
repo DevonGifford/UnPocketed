@@ -1443,7 +1443,7 @@ log, the decision map and this document.
 Deliver:
 
 - an enrichment provider abstraction, separate from the transcription one;
-- the first LLM provider, plus a second to prove the abstraction;
+- Anthropic first, Gemini second; an OpenAI-compatible endpoint third, which may slip;
 - Briefs: title, sub-headline, summary, overview, conclusion;
 - LLM cleanup, producing a derived transcript rather than overwriting one;
 - Brief display on the transcript screen;
@@ -1461,8 +1461,18 @@ And speaker turns come from the recogniser's diarization: an LLM may reformat or
 but must never be the authority for deciding **who spoke**, because inferring that from flat
 text means inventing boundaries.
 
-The provider question — which LLM providers ship first, and on what evidence — is this PR's
-own research, as the transcription provider choice was for PR7.
+The provider question was researched on 2026-10-08. Cost does not decide it: enriching an
+hour-long transcript costs between $0.0009 and $0.078 depending on the model, against
+$0.17-$0.26 to transcribe that same hour, so the most expensive option is less than half the
+cheapest transcription. **Data usage decides it.** Anthropic and OpenAI do not train on API
+data by default, and neither does Gemini's paid tier — but Gemini's **free** tier states that
+content is used to improve Google's products.
+
+The free tier still ships, because a free option is worth having and the choice is the
+user's. It carries a disclosure that cannot say what the other providers' can: Gemini's tier
+follows the Google Cloud project's billing status rather than the API key, and no API reports
+it, so Unpocketed **cannot tell** which tier a key is on. That notice states a condition and
+says the app cannot resolve it, rather than stating a fact it does not have.
 
 ---
 
