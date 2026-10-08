@@ -1,11 +1,12 @@
+import { useCallback, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
-import { Link, useRouter } from "expo-router";
+import { Link, useFocusEffect, useRouter } from "expo-router";
 import { Screen } from "@/components/screen";
 import { AppHeader } from "@/components/app-header";
 import { HudFrame } from "@/components/hud-frame";
 import { Text } from "@/components/ui/text";
 import { useLibrary } from "@/features/library";
-import { useTranscripts } from "@/features/transcription";
+import { currentProviderDescriptor, useTranscripts } from "@/features/transcription";
 import {
   formatApproximateDuration,
   formatDuration,
@@ -92,6 +93,19 @@ function Tile({
 export function HomeScreen() {
   const router = useRouter();
   const { recordings } = useLibrary();
+
+  /*
+   * Re-read on focus rather than during render, like Settings: the selection
+   * lives in a file, and with the React Compiler enabled a zero-argument read
+   * has nothing to invalidate on. Settings is one tap away from this tile, so
+   * a stale answer here is one the user has just this second changed.
+   */
+  const [providerName, setProviderName] = useState<string | null>(null);
+  useFocusEffect(
+    useCallback(() => {
+      setProviderName(currentProviderDescriptor()?.name ?? null);
+    }, []),
+  );
   const { transcripts } = useTranscripts();
   const recent = recordings.slice(0, 2);
 
@@ -146,10 +160,16 @@ export function HomeScreen() {
             detail="From your files"
             onPress={() => router.push("/import")}
           />
+          {/*
+            Was hardcoded to "Not configured" from PR1's static interface, and
+            stayed that way after the provider became a real choice — so the
+            first screen in the app told a configured user they had set nothing
+            up. It names the chosen Provider now.
+          */}
           <Tile
             glyph="◇"
             title="AI Provider"
-            detail="Not configured"
+            detail={providerName ?? "Not configured"}
             onPress={() => router.push("/settings")}
           />
         </View>
