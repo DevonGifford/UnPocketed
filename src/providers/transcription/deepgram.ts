@@ -151,14 +151,9 @@ export function messageForStatus(status: number): string {
  * internal label, which would attribute a transcript to a model the user never
  * chose and could not select again.
  *
- * **`arch` is the best available guess, not a verified contract.** The
- * documented example carries `name: "2-general-nova"` beside `arch: "nova-3"`,
- * which disagree with each other — `2-general-nova` is the nova-**2** label —
- * so the example is unreliable about exactly this field. Nothing can break:
- * `requestedModelId` is the fallback, and a transcript is still attributed. But
- * the device test is asked to read the attribution off the screen and treat
- * anything other than `nova-3` as a finding, because a value outside this
- * provider's `models` list produces a chip the user can never select again.
+ * Deepgram's documented example disagrees with itself about `name` and `arch`.
+ * A live Nova-3 transcription returned `arch: "nova-3"` on 2026-10-08; the
+ * requested model remains the fallback if a future response omits `arch`.
  *
  * @param requestedModelId Falls back to what was asked for, because a
  * transcript that cannot say which model made it is worse than one that assumes

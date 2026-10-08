@@ -52,6 +52,8 @@ export interface ProviderDescriptor {
 type ProviderFactory = (apiKey: string) => TranscriptionProvider;
 
 /** Registration order is display order, and the first entry is the default. */
+// Keep each key equal to the Provider's id: preferences and in-flight jobs
+// persist that id, so changing it also changes what can be resumed.
 const FACTORIES: Record<string, ProviderFactory> = {
   assemblyai: createAssemblyAI,
   deepgram: createDeepgram,

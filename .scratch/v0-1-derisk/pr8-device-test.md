@@ -1,10 +1,14 @@
 # PR8 device test — bring-your-own provider
 
+Historical test script. The successful provider, model, diarization, and
+screen-leaving runs are recorded in [map.md](map.md); the kill, failure, and
+hour-long stress cases remain deferred there. Read that status before rerunning
+any step below.
+
 PR8's exit condition is **"the same recording can be transcribed successfully by
-two different models/providers"**, and it cannot be met by review. No
-transcription has ever run against a real key, so every network path in PR7 and
-PR8 is unexercised: upload, submit, poll, model attribution and every failure
-branch. This script is what closes it.
+two different models/providers"**, and it cannot be met by review. This script
+was written before the first live run to exercise upload, submit, poll, model
+attribution, and failure paths.
 
 It has to be run by hand. MIUI blocks `adb shell input`, so the taps cannot be
 injected — the same wall that left `probeDurationMs` unexercised at PR6.

@@ -67,6 +67,7 @@ export interface TranscriptionOptions {
 }
 
 export interface TranscriptionResult {
+  /** Full plain text, even when speaker segments are also available. */
   text: string;
   /**
    * Speaker-attributed turns, when diarization was asked for and produced some.
@@ -179,7 +180,7 @@ export interface TranscriptionProvider {
   requiresApiKey: boolean;
   /** Models this provider offers, most capable first. PR8 lets the user choose. */
   models: { id: string; name: string }[];
-  /** The model used when the user has not chosen one. */
+  /** The model used when the user has not chosen one; must appear in `models`. */
   defaultModelId: string;
   /**
    * Where the user gets an API key, shown in Settings so a bring-your-own-key

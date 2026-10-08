@@ -29,7 +29,7 @@ Reaching the destination does **not** mean v0.1 is built. §39's "Definition of 
 
 **Every ticket is resolved except one.** [What is an edited transcript?](issues/03-what-is-an-edited-transcript.md) is the last one open — unblocked, cheap, and PR9 work, so it gates nothing before then. Take it any time; it wants taking before PR9 starts, not after.
 
-**PR1–PR7 are built and merged** (PR7 on 2026-10-08). **PR8's code is written** (2026-10-08) and is waiting on the one thing only Devon can do — see the gate below.
+**PR1–PR7 are built and merged** (PR7 on 2026-10-08). **PR8 is complete** (2026-10-08); its device results and deferred stress cases are recorded below.
 
 PR8 shipped: a preference file for the Provider and Model choice, pickers for both in Settings, per-Provider key storage, the **Deepgram** adapter, and the retranscribe control that had been a label with no handler. `custom-openai.ts` was **deliberately left out**: ticket 04 listed it, but the 2026-10-08 two-stage decision above narrowed PR8 to AssemblyAI plus Deepgram, and the escape hatch needs a configurable base URL — preference state and UI that nothing in the exit condition asks for. It is a small, separable follow-up, not a loose end inside PR8.
 

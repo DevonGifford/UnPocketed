@@ -335,9 +335,9 @@ async function runTranscription(
 
     return { status: "transcribed", transcript: completeJob(transcriptFrom(job, result)) };
   } catch (error) {
-    // Which half failed decides everything. Before a reference exists nothing
-    // is running and nothing was charged, so recording a failure is right and
-    // retrying is free. After one exists, see `outcomeAfterSubmit`.
+    // A missing reference does not prove the Provider did no work: its reply
+    // may have been lost, or a synchronous Provider may already have billed.
+    // Once a reference exists, preserve the job for `outcomeAfterSubmit`.
     if (job.jobRef) return outcomeAfterSubmit(job, error);
 
     if (error instanceof TranscriptionAborted) return { status: "detached" };
@@ -411,8 +411,8 @@ export async function resumeJobFor(
  * Re-attaches to every job left in flight by a previous run (§18).
  *
  * Run once at startup. A job with a reference is polled to completion; one
- * without never reached the provider, so there is nothing running and nothing
- * paid for, and it is cleared rather than left spinning forever.
+ * without a reference cannot be resumed. Its failure message depends on
+ * whether that Provider normally issues references; see `reasonForMissingJobRef`.
  *
  * @returns The Transcripts recovered, for the caller to surface.
  * @throws Never.
