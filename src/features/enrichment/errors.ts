@@ -70,6 +70,11 @@ const FAILURES: Record<
     detail:
       "The provider is working, but this model is in heavy demand — free tiers feel this most on the newest models. Wait a moment and try again, or pick a different model in Settings. Nothing was sent twice and nothing was charged.",
   },
+  "model-unavailable": {
+    title: "That model is not available on your account",
+    detail:
+      "The provider does not offer this model to your account — some older models stay listed and billed but are closed to new keys. Pick a different model in Settings. Nothing was sent and nothing was charged.",
+  },
   "too-large": {
     title: "This transcript is too long for that model",
     detail:
@@ -111,6 +116,8 @@ const NOT_RETRYABLE: EnrichmentFailureReason[] = [
   "not-configured",
   // The balance is empty; retrying fails identically until it is topped up.
   "insufficient-credit",
+  // Repeating the request would pick the same unavailable model.
+  "model-unavailable",
   // The input is the problem, and it will not change by asking again.
   "too-large",
   "empty-transcript",

@@ -118,6 +118,15 @@ export type EnrichmentErrorKind =
    * model. Free tiers hit this on flagship models, which is where everyone is.
    */
   | "unavailable"
+  /**
+   * The chosen model does not exist for this account.
+   *
+   * Observed on 2026-10-08: Gemini answers `404` for a model that is still
+   * published and still billed, but "no longer available to new users". A
+   * model list taken from a pricing page will contain these; only the account
+   * can say which it may actually use. The fix is always to choose another.
+   */
+  | "model-unavailable"
   /** The transcript exceeds the model's context window. Retrying will not help. */
   | "too-large"
   /** The provider answered, but not with a Brief this app can read. */
@@ -144,7 +153,9 @@ export class EnrichmentError extends Error {
       // user to act, one needs a shorter transcript.
       (kind !== "unauthorized" &&
         kind !== "insufficient-credit" &&
-        kind !== "too-large");
+        kind !== "too-large" &&
+        // Repeating the request picks the same unavailable model.
+        kind !== "model-unavailable");
   }
 }
 

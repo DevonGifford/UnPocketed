@@ -1,4 +1,5 @@
 import { BRIEF_SCHEMA, BRIEF_SYSTEM_PROMPT, briefPrompt, readBriefContent } from "./brief";
+import { withBusyRetry } from "./retry";
 import {
   EnrichmentAborted,
   EnrichmentError,
@@ -57,6 +58,9 @@ export function kindForStatus(status: number): EnrichmentErrorKind {
   if (status === 413) return "too-large";
   // The free tier's limits are low enough that this is an ordinary outcome
   // rather than an edge case, which is why it has a kind of its own.
+  // Not "the endpoint is wrong": these APIs put the model in the request body,
+  // so a 404 means the *model* is unknown to this account, not the URL.
+  if (status === 404) return "model-unavailable";
   if (status === 429) return "rate-limited";
   /*
    * Up, but busy. Observed on Gemini's free tier on 2026-10-08:
@@ -218,25 +222,34 @@ async function send(
 
   let response: Response;
   try {
-    response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        "x-goog-api-key": apiKey,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: options.modelId,
-        system_instruction: BRIEF_SYSTEM_PROMPT,
-        // One string, where Anthropic takes a list of role-tagged messages.
-        input: briefPrompt(input),
-        response_format: {
-          type: "text",
-          mime_type: "application/json",
-          schema: geminiSchema(),
-        },
-      }),
-      signal,
-    });
+    /*
+     * Wrapped so a busy model is retried rather than handed to the user as a
+     * failure. Safe because a 5xx here means nothing was processed: no charge,
+     * no duplicate. See `retry.ts`.
+     */
+    response = await withBusyRetry(
+      () =>
+        fetch(ENDPOINT, {
+          method: "POST",
+          headers: {
+            "x-goog-api-key": apiKey,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: options.modelId,
+            system_instruction: BRIEF_SYSTEM_PROMPT,
+            // One string, where Anthropic takes a list of role-tagged messages.
+            input: briefPrompt(input),
+            response_format: {
+              type: "text",
+              mime_type: "application/json",
+              schema: geminiSchema(),
+            },
+          }),
+          signal,
+        }),
+      options.signal,
+    );
   } catch (error) {
     if (options.signal?.aborted) throw new EnrichmentAborted();
     throw new EnrichmentError(

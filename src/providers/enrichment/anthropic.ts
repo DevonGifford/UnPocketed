@@ -1,4 +1,5 @@
 import { BRIEF_SCHEMA, BRIEF_SYSTEM_PROMPT, briefPrompt, readBriefContent } from "./brief";
+import { withBusyRetry } from "./retry";
 import {
   EnrichmentAborted,
   EnrichmentError,
@@ -69,6 +70,9 @@ export function kindForStatus(status: number): EnrichmentErrorKind {
   // this is the closest honest mapping available from the status alone.
   if (status === 402) return "insufficient-credit";
   if (status === 413) return "too-large";
+  // Not "the endpoint is wrong": these APIs put the model in the request body,
+  // so a 404 means the *model* is unknown to this account, not the URL.
+  if (status === 404) return "model-unavailable";
   if (status === 429) return "rate-limited";
   /*
    * Up, but busy. Observed on Gemini's free tier on 2026-10-08:
@@ -207,32 +211,41 @@ async function send(
 
   let response: Response;
   try {
-    response = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: {
-        "x-api-key": apiKey,
-        "anthropic-version": API_VERSION,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: options.modelId,
-        max_tokens: MAX_TOKENS,
-        system: BRIEF_SYSTEM_PROMPT,
-        messages: [{ role: "user", content: briefPrompt(input) }],
-        output_config: {
-          /*
-           * `medium` rather than the default `high`. Writing a brief from a
-           * transcript is extraction, not reasoning, and this is a route where
-           * someone is watching a spinner on a phone — Anthropic's own guidance
-           * is that latency-sensitive routes rarely repay higher effort. The
-           * model picker is where a user trades quality for cost; this is not.
-           */
-          effort: "medium",
-          format: { type: "json_schema", schema: BRIEF_SCHEMA },
-        },
-      }),
-      signal,
-    });
+    /*
+     * Wrapped so a busy model is retried rather than handed to the user as a
+     * failure. Safe because a 5xx here means nothing was processed: no charge,
+     * no duplicate. See `retry.ts`.
+     */
+    response = await withBusyRetry(
+      () =>
+        fetch(ENDPOINT, {
+          method: "POST",
+          headers: {
+            "x-api-key": apiKey,
+            "anthropic-version": API_VERSION,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: options.modelId,
+            max_tokens: MAX_TOKENS,
+            system: BRIEF_SYSTEM_PROMPT,
+            messages: [{ role: "user", content: briefPrompt(input) }],
+            output_config: {
+              /*
+               * `medium` rather than the default `high`. Writing a brief from a
+               * transcript is extraction, not reasoning, and this is a route where
+               * someone is watching a spinner on a phone — Anthropic's own guidance
+               * is that latency-sensitive routes rarely repay higher effort. The
+               * model picker is where a user trades quality for cost; this is not.
+               */
+              effort: "medium",
+              format: { type: "json_schema", schema: BRIEF_SCHEMA },
+            },
+          }),
+          signal,
+        }),
+      options.signal,
+    );
   } catch (error) {
     // A caller abort is not a network failure; the timeout deliberately is.
     if (options.signal?.aborted) throw new EnrichmentAborted();
