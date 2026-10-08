@@ -155,6 +155,25 @@ export function editedTranscript(
   };
 }
 
+/**
+ * A short label distinguishing a Transcript from its siblings.
+ *
+ * The model alone is not enough once a Recording can hold more than one
+ * Transcript from the same one. `providerId`/`modelId` record **origin**, so a
+ * corrected or edited copy carries the same pair as the transcript it came
+ * from — two chips reading "nova-3" that are not the same text. That was
+ * unreachable until a model could produce a derived Transcript, and became
+ * wrong the moment one could.
+ *
+ * @returns The model, plus who changed it where anyone has.
+ */
+export function transcriptLabel(transcript: Transcript): string {
+  const source = transcript.source;
+  if (!source || source.kind === "provider") return transcript.modelId;
+  if (source.kind === "user") return `${transcript.modelId} · edited`;
+  return `${transcript.modelId} · corrected`;
+}
+
 /** Whether this Transcript is the Provider's own words, untouched. */
 export function isProviderOutput(transcript: Transcript): boolean {
   return (transcript.source?.kind ?? "provider") === "provider";

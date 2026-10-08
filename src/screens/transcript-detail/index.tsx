@@ -43,11 +43,22 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
    */
   const {
     briefs,
-    busy: writingBrief,
+    busy: enrichmentBusy,
     failure: briefFailure,
     enrich,
+    cleanup,
+    canClean,
+    cleanFoundNothing,
     dismissFailure: dismissBriefFailure,
-  } = useTranscriptEnrichment(transcript);
+  } = useTranscriptEnrichment(transcript, {
+    /*
+     * The corrected text is a *different* Transcript, so going to it is the
+     * only way the user sees what they asked for. `replace` rather than
+     * `push`: the original is one tap away on the recording, and leaving it on
+     * the stack would make Back walk through a version they have moved past.
+     */
+    onCleaned: (cleaned) => router.replace(`/transcripts/${cleaned.id}`),
+  });
 
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -113,7 +124,33 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
           The reader must always be able to reach what the recogniser actually
           returned, however good the summary above it looks.
         */}
-        {writingBrief ? <BusyIndicator label="Writing a brief…" /> : null}
+        {enrichmentBusy ? <BusyIndicator label="Asking the model…" /> : null}
+
+        {/*
+          A correction pass that found nothing is a real answer, and the only
+          one with nowhere to be stored — nothing changed, so no record was
+          written. Saying it here is the only way the user learns the model
+          read the transcript and agreed with it.
+        */}
+        {cleanFoundNothing ? (
+          <View className="gap-1 rounded-md border border-border bg-card p-4">
+            <Text variant="headline">Nothing to correct</Text>
+            <Text variant="body">
+              The model read the transcript and found no mistakes worth fixing,
+              so nothing was changed or stored.
+            </Text>
+            <View className="flex-row">
+              <Pressable
+                onPress={dismissBriefFailure}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+              >
+                <Text variant="body">Dismiss</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {briefFailure ? (
           <View className="gap-2 rounded-md border border-border bg-card p-4">
@@ -128,7 +165,7 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
               >
                 <Text variant="body">Dismiss</Text>
               </Pressable>
-              {briefFailure.retryable && !writingBrief ? (
+              {briefFailure.retryable && !enrichmentBusy ? (
                 <Pressable
                   onPress={enrich}
                   accessibilityRole="button"
@@ -220,8 +257,26 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
             Re-running the same model replaces its Brief; a different model adds
             one beside it, which is what makes two comparable.
           */}
+          {/*
+            Offered only where the chosen provider implements it — `cleanup` is
+            optional on the interface, as `resume` is for transcription — and
+            only on the recogniser's own transcript. Correcting a correction
+            would be asking a model to second-guess itself, and correcting the
+            user's edit would put a model's words over a person's.
+          */}
+          {canClean && isProviderOutput(transcript) ? (
+            <Pressable
+              onPress={enrichmentBusy ? undefined : cleanup}
+              accessibilityRole="button"
+              accessibilityLabel="Correct the wording with AI"
+              className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
+            >
+              <Text variant="body">Correct wording</Text>
+            </Pressable>
+          ) : null}
+
           <Pressable
-            onPress={writingBrief ? undefined : enrich}
+            onPress={enrichmentBusy ? undefined : enrich}
             accessibilityRole="button"
             accessibilityLabel={
               briefs.length > 0 ? "Write another brief" : "Write a brief"
@@ -229,7 +284,7 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
             className="min-h-[44px] justify-center rounded-md border border-border px-4 active:opacity-60"
           >
             <Text variant="body">
-              {writingBrief
+              {enrichmentBusy
                 ? "Writing…"
                 : briefs.length > 0
                   ? "Another brief"

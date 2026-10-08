@@ -20,6 +20,7 @@ import {
   chooseProvider,
   currentSelection,
   deleteTranscript,
+  transcriptLabel,
   shareRecordingAudio,
   shareTranscript,
   type ExportFormat,
@@ -307,13 +308,18 @@ export function RecordingDetailScreen({ id }: { id: string }) {
                     onPress={() => setSelectedTranscriptId(t.id)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`${t.modelId} transcript`}
+                    accessibilityLabel={`${transcriptLabel(t)} transcript`}
                     className={`min-h-[36px] justify-center rounded-full border px-3 ${
                       isSelected ? "border-foreground bg-card" : "border-border"
                     }`}
                   >
                     <Text variant="caption" className={isSelected ? "text-foreground" : ""}>
-                      {t.modelId}
+                      {/*
+                        Not `modelId` alone: that records origin, so a corrected
+                        or edited copy carries the same one as the transcript it
+                        came from and the two chips would be identical.
+                      */}
+                      {transcriptLabel(t)}
                     </Text>
                   </Pressable>
                 );

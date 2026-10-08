@@ -3,6 +3,7 @@ import { useFocusEffect } from "expo-router";
 
 import type { Brief, Transcript } from "@/types";
 
+import { cleanupAvailable, cleanupTranscript } from "./cleanup";
 import { enrichTranscript } from "./enrich";
 import type { EnrichmentFailure } from "./errors";
 import { briefsFor, reconcileBriefs } from "./repository";
@@ -36,6 +37,15 @@ export interface TranscriptEnrichment {
   failure: EnrichmentFailure | null;
   /** Asks the chosen provider for a Brief. Ignored while one is running. */
   enrich: () => void;
+  /** Asks the chosen provider to correct the wording. Ignored while busy. */
+  cleanup: () => void;
+  /** Whether the chosen provider offers a correction pass at all. */
+  canClean: boolean;
+  /**
+   * Set when a correction pass found nothing to fix. A real answer rather than
+   * a failure, and deliberately not stored — so it has nowhere else to live.
+   */
+  cleanFoundNothing: boolean;
   dismissFailure: () => void;
   refresh: () => void;
 }
@@ -47,10 +57,24 @@ export interface TranscriptEnrichment {
  */
 export function useTranscriptEnrichment(
   transcript: Transcript | null,
+  options: {
+    /**
+     * Called when a correction pass produced a new Transcript.
+     *
+     * A callback rather than state the screen watches, because what happens
+     * next is navigation: the corrected text lives in a **different**
+     * Transcript, so staying put would show the user the original they just
+     * asked to improve and look as though nothing happened.
+     */
+    onCleaned?: (transcript: Transcript) => void;
+  } = {},
 ): TranscriptEnrichment {
+  const { onCleaned } = options;
   const [briefs, setBriefs] = useState<Brief[]>([]);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<EnrichmentFailure | null>(null);
+  const [canClean, setCanClean] = useState(false);
+  const [cleanFoundNothing, setCleanFoundNothing] = useState(false);
 
   const mounted = useRef(true);
   /*
@@ -85,6 +109,20 @@ export function useTranscriptEnrichment(
 
   useFocusEffect(refresh);
 
+  /*
+   * Asked on focus rather than assumed, because the answer changes with the
+   * chosen provider: `cleanup` is optional on the interface, exactly as
+   * `resume` is for transcription. Offering a control that cannot work is
+   * worse than not offering it.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      void cleanupAvailable().then((available) => {
+        if (mounted.current) setCanClean(available);
+      });
+    }, []),
+  );
+
   const enrich = useCallback(() => {
     if (!transcript || busy) return;
 
@@ -107,7 +145,45 @@ export function useTranscriptEnrichment(
       });
   }, [transcript, busy, refresh]);
 
-  const dismissFailure = useCallback(() => setFailure(null), []);
+  const cleanup = useCallback(() => {
+    if (!transcript || busy) return;
 
-  return { briefs, busy, failure, enrich, dismissFailure, refresh };
+    setFailure(null);
+    setCleanFoundNothing(false);
+    setBusy(true);
+
+    const controller = new AbortController();
+    abort.current = controller;
+
+    void cleanupTranscript(transcript, controller.signal)
+      .then((outcome) => {
+        if (!mounted.current) return;
+        if (outcome.status === "failed") setFailure(outcome.failure);
+        // Nothing to fix is an answer worth showing. It stores no record, so
+        // the screen is the only place it can be said.
+        if (outcome.status === "unchanged") setCleanFoundNothing(true);
+        if (outcome.status === "cleaned") onCleaned?.(outcome.transcript);
+        refresh();
+      })
+      .finally(() => {
+        if (mounted.current) setBusy(false);
+      });
+  }, [transcript, busy, refresh, onCleaned]);
+
+  const dismissFailure = useCallback(() => {
+    setFailure(null);
+    setCleanFoundNothing(false);
+  }, []);
+
+  return {
+    briefs,
+    busy,
+    failure,
+    enrich,
+    cleanup,
+    canClean,
+    cleanFoundNothing,
+    dismissFailure,
+    refresh,
+  };
 }
