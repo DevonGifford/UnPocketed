@@ -47,11 +47,15 @@ Producing an additional Transcript for a Recording that already has one. Additiv
 _Avoid_: re-run, redo, regenerate, refresh, update
 
 **Provider**:
-An external service that performs Transcription, chosen and paid for by the user. Reached through an adapter, so the rest of the application stays ignorant of which one is in use.
+A service that performs Transcription — speech to text, and nothing else. Chosen by the user, and paid for directly by them where it is a remote one. Reached through an adapter, so the rest of the application stays ignorant of which one is in use.
+
+Deliberately no longer "an external service": an on-device Provider needs no API key and no network, and the word has to still fit when one lands (§40). A later layer that reads a Transcript and derives a title, a summary or speaker turns from it is a different job answered by different services, and must not borrow this word.
 _Avoid_: vendor, backend, server, API, service, integration
 
 **Model**:
 The specific speech-to-text model used within a Provider. Selected independently of the Provider where the Provider allows it, and recorded on every Transcript.
+
+Scoped to transcription on purpose. It does not mean any model Unpocketed might one day send text to — only the one that turned audio into this Transcript's words.
 _Avoid_: engine, algorithm, version
 
 ### Ownership
