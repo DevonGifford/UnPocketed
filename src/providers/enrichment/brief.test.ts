@@ -44,7 +44,12 @@ describe("readBriefContent", () => {
   it("converts speaker numbers back to segment indices", () => {
     // The model is shown "Speaker 1"; segments are indexed from zero.
     expect(
-      readBriefContent({ speakerNames: { "1": "Sam", "2": "Alex" } }).speakerNames,
+      readBriefContent({
+        speakerNames: [
+          { speaker: 1, name: "Sam" },
+          { speaker: 2, name: "Alex" },
+        ],
+      }).speakerNames,
     ).toEqual({ 0: "Sam", 1: "Alex" });
   });
 
@@ -52,13 +57,24 @@ describe("readBriefContent", () => {
     expect(
       readBriefContent({
         title: "Kept",
-        speakerNames: { "1": "Sam", "0": "Impossible", notANumber: "No", "2": "  " },
+        speakerNames: [
+          { speaker: 1, name: "Sam" },
+          { speaker: 0, name: "Impossible" },
+          { speaker: "x", name: "No" },
+          { speaker: 2, name: "   " },
+          "not an object",
+        ],
       }).speakerNames,
     ).toEqual({ 0: "Sam" });
   });
 
   it("omits speakerNames entirely when none survived", () => {
-    const content = readBriefContent({ title: "Kept", speakerNames: {} });
+    const content = readBriefContent({ title: "Kept", speakerNames: [] });
+    expect("speakerNames" in content).toBe(false);
+  });
+
+  it("ignores a speakerNames object, which no provider should send", () => {
+    const content = readBriefContent({ title: "Kept", speakerNames: { "1": "Sam" } });
     expect("speakerNames" in content).toBe(false);
   });
 

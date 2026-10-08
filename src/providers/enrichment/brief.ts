@@ -51,11 +51,30 @@ export const BRIEF_SCHEMA = {
       description:
         "What was concluded, agreed, or left open. Omit entirely if the recording reaches no conclusion.",
     },
+    /*
+     * An array of pairs rather than an object keyed by speaker number.
+     *
+     * A map would need `additionalProperties` to type its values, and Google's
+     * schema subset is OpenAPI-derived and does not reliably accept it. An
+     * array of objects is supported everywhere, so this is the shape that
+     * survives all three providers without a per-provider schema.
+     */
     speakerNames: {
-      type: "object",
-      additionalProperties: { type: "string" },
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          speaker: {
+            type: "integer",
+            description: "The speaker number as shown in the transcript.",
+          },
+          name: { type: "string" },
+        },
+        required: ["speaker", "name"],
+      },
       description:
-        "A name for a speaker number, only where the transcript states or clearly implies it. Keys are the speaker numbers shown. Omit any speaker whose name is not evident.",
+        "Names for speakers, only where the transcript states or clearly implies them. Omit any speaker whose name is not evident, and omit this field entirely if no name is.",
     },
   },
 } as const;
@@ -167,26 +186,28 @@ export function readBriefContent(raw: unknown): BriefContent {
   return content;
 }
 
-/** Speaker names, keyed by the index the recogniser assigned. */
+/**
+ * Speaker names, re-keyed to the index the recogniser assigned.
+ *
+ * The model is shown speaker *numbers* starting at 1, because that is what the
+ * user sees, while segments are indexed from 0. Converting here keeps the
+ * off-by-one in the one place that knows about both.
+ */
 function readSpeakerNames(raw: unknown): Record<number, string> | undefined {
-  if (typeof raw !== "object" || raw === null) return undefined;
+  if (!Array.isArray(raw)) return undefined;
 
   const names: Record<number, string> = {};
-  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-    const name = trimmed(value);
+  for (const entry of raw) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const pair = entry as { speaker?: unknown; name?: unknown };
+
+    const name = trimmed(pair.name);
     if (!name) continue;
 
-    /*
-     * The model is shown speaker *numbers* starting at 1, because that is what
-     * the user sees, while segments are indexed from 0. Converting here keeps
-     * the off-by-one in the one place that knows about both.
-     */
-    const shown = Number(key);
-    if (!Number.isInteger(shown)) continue;
-    const index = shown - 1;
-    if (index < 0) continue;
+    const shown = typeof pair.speaker === "number" ? pair.speaker : Number(pair.speaker);
+    if (!Number.isInteger(shown) || shown < 1) continue;
 
-    names[index] = name;
+    names[shown - 1] = name;
   }
 
   return Object.keys(names).length > 0 ? names : undefined;
