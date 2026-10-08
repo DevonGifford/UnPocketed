@@ -109,6 +109,15 @@ export type EnrichmentErrorKind =
   | "insufficient-credit"
   /** Rate limited. Retryable after a wait, which is worth saying. */
   | "rate-limited"
+  /**
+   * The provider is up but the model is busy — a `503`, not a fault.
+   *
+   * Distinct from `rate-limited` (the user's own quota) and from
+   * `provider-failed` (something was wrong with the request). The advice
+   * differs: wait and repeat the identical request, or pick a less contended
+   * model. Free tiers hit this on flagship models, which is where everyone is.
+   */
+  | "unavailable"
   /** The transcript exceeds the model's context window. Retrying will not help. */
   | "too-large"
   /** The provider answered, but not with a Brief this app can read. */

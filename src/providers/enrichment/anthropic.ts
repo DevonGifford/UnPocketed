@@ -70,6 +70,13 @@ export function kindForStatus(status: number): EnrichmentErrorKind {
   if (status === 402) return "insufficient-credit";
   if (status === 413) return "too-large";
   if (status === 429) return "rate-limited";
+  /*
+   * Up, but busy. Observed on Gemini's free tier on 2026-10-08:
+   * "gemini-3.8-flash is currently experiencing high demand". Reported as a
+   * fault it would send the user tuning models, when the fix is to wait or
+   * pick a less contended one.
+   */
+  if (status === 502 || status === 503 || status === 504) return "unavailable";
   return "provider-failed";
 }
 

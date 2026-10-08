@@ -150,6 +150,24 @@ describe("status mapping", () => {
     }
   });
 
+  /*
+   * Observed live on 2026-10-08: Gemini's free tier returned 503 with
+   * "gemini-3.8-flash is currently experiencing high demand". Mapped to
+   * provider-failed it told the user to try a different model, when the right
+   * advice was to wait.
+   */
+  it("treats a busy model as busy, not as a fault", () => {
+    for (const kind of [anthropicKind, geminiKind]) {
+      expect(kind(503)).toBe("unavailable");
+      expect(kind(502)).toBe("unavailable");
+      expect(kind(504)).toBe("unavailable");
+    }
+  });
+
+  it("makes a busy model retryable, since the same request will work later", () => {
+    expect(new EnrichmentError("unavailable", "…").retryable).toBe(true);
+  });
+
   it("makes a rate limit retryable and a bad key not", () => {
     expect(new EnrichmentError("rate-limited", "…").retryable).toBe(true);
     expect(new EnrichmentError("unauthorized", "…").retryable).toBe(false);

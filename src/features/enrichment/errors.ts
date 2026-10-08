@@ -65,6 +65,11 @@ const FAILURES: Record<
     detail:
       "Too many requests in a short time. Free tiers hit this quickly. Waiting a minute and trying again usually clears it.",
   },
+  unavailable: {
+    title: "That model is busy right now",
+    detail:
+      "The provider is working, but this model is in heavy demand — free tiers feel this most on the newest models. Wait a moment and try again, or pick a different model in Settings. Nothing was sent twice and nothing was charged.",
+  },
   "too-large": {
     title: "This transcript is too long for that model",
     detail:
