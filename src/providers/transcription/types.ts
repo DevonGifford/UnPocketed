@@ -84,6 +84,16 @@ export type TranscriptionErrorKind =
    * still be running — which is why they must not be conflated.
    */
   | "job-failed"
+  /**
+   * The user's account with the provider has no credit left.
+   *
+   * Distinct from `unauthorized` because the key is valid and from
+   * `provider-failed` because nothing is wrong with the request — the user has
+   * to top up or switch Provider, and no other kind can say that. It exists
+   * because bring-your-own-key makes the provider's balance the user's
+   * problem (§19), so running out is an ordinary state rather than an edge.
+   */
+  | "insufficient-credit"
   /** The audio exceeds what this provider takes. Retrying will not help. */
   | "too-large"
   /** Anything else, including a response that did not parse. */
@@ -103,7 +113,11 @@ export class TranscriptionError extends Error {
     super(message, { cause: options?.cause });
     this.name = "TranscriptionError";
     this.kind = kind;
-    this.retryable = options?.retryable ?? kind !== "unauthorized";
+    this.retryable =
+      options?.retryable ??
+      // Neither can be fixed by sending the same request again: one needs a
+      // different key, the other needs the user to top up their account.
+      (kind !== "unauthorized" && kind !== "insufficient-credit");
   }
 }
 
@@ -126,6 +140,15 @@ export interface TranscriptionProvider {
   id: string;
   name: string;
   capabilities: ProviderCapabilities;
+  /**
+   * Whether this provider needs an API key before it can transcribe.
+   *
+   * True for every provider v0.1 ships. It is asked rather than assumed because
+   * §40 wants an on-device provider eventually, and that one has no account
+   * and no key — gating resolution on a stored key for *every* provider would
+   * make a keyless one permanently unreachable.
+   */
+  requiresApiKey: boolean;
   /** Models this provider offers, most capable first. PR8 lets the user choose. */
   models: { id: string; name: string }[];
   /** The model used when the user has not chosen one. */

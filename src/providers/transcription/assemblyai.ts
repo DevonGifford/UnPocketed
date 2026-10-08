@@ -66,6 +66,9 @@ function delay(ms: number): Promise<void> {
 /** Maps an HTTP status onto something the UI can explain and act on. */
 function kindForStatus(status: number): TranscriptionErrorKind {
   if (status === 401 || status === 403) return "unauthorized";
+  // Valid key, empty wallet. Under bring-your-own-key the balance is the
+  // user's, so this needs saying rather than reading as a provider fault.
+  if (status === 402) return "insufficient-credit";
   if (status === 413) return "too-large";
   return "provider-failed";
 }
@@ -269,6 +272,7 @@ export function createAssemblyAI(apiKey: string): TranscriptionProvider {
       // No documented duration ceiling below the size one, so size decides.
       supportsDiarization: true,
     },
+    requiresApiKey: true,
     models: [
       { id: "universal-2", name: "Universal-2" },
       { id: "universal-3-5-pro", name: "Universal-3.5 Pro" },
