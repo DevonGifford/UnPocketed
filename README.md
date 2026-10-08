@@ -161,7 +161,9 @@ Then **configure transcription**: open **Settings** in the app and add your own 
 ----
 Recordings and transcripts are stored on your device. Nothing is uploaded unless you explicitly request a cloud transcription, and when you do it goes to the provider you picked — not through any infrastructure of ours, because there isn't any.
 
-There are no Unpocketed accounts, no cloud storage, no silent uploads, and no analytics containing recording content. Should telemetry ever be introduced, it will exclude recording and transcript content entirely and is intended to be opt-in.
+There are no Unpocketed accounts, no cloud storage, and no analytics of any kind. Should telemetry ever be introduced, it will exclude recording and transcript content entirely and is intended to be opt-in.
+
+One case deserves naming rather than leaving to the small print: Android's own backup service is left enabled, so your recordings are part of your device backup to **your** Google Drive. That is what lets a library survive a new phone, and it is the one time audio leaves without you approving that recording individually. [**PRIVACY.md**](PRIVACY.md) covers it, and what each transcription and AI provider does with what you send them.
 
 <br/>
 <br/>
@@ -185,9 +187,11 @@ Unpocketed will not ship features designed to conceal that recording is taking p
 | Document | What it covers |
 |---|---|
 | [Specification](docs/spec.md) | Product and technical spec for v0.1 |
+| [Privacy](PRIVACY.md) | What stays on the device, what leaves it, and when |
 | [Domain glossary](CONTEXT.md) | The project's vocabulary, and the words to avoid |
 | [Android setup](docs/android-setup.md) | Getting a local build toolchain working |
 | [Running locally](docs/running-locally.md) | Running the app on a phone, in a browser, or over wireless ADB |
+| [Releasing](docs/releasing.md) | Producing a signed APK or AAB, and what Play asks for |
 | [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
 | [Decision map](.scratch/v0-1-derisk/map.md) | What is settled, what is still open |
 
