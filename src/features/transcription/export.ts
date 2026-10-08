@@ -1,4 +1,4 @@
-import type { Recording, Transcript } from "@/types";
+import type { Brief, Recording, Transcript } from "@/types";
 
 import { groupedTurns, readingViewFor, speakerLabel } from "./reading";
 
@@ -69,8 +69,9 @@ function authorship(transcript: Transcript): string | null {
  * The words, with speaker prefixes where turns exist, and nothing else.
  *
  * §3.4 calls plain text "suitable for copy/paste and simple archival", so it
- * carries no metadata at all — pasting a transcript into a message should not
- * paste a provider name with it.
+ * carries no metadata at all — and **no brief**. Pasting a transcript into a
+ * message should paste the words that were said, not a provider name or a
+ * model's summary of them.
  */
 export function transcriptAsText(transcript: Transcript): string {
   const view = readingViewFor(transcript);
@@ -94,6 +95,7 @@ export function transcriptAsText(transcript: Transcript): string {
 export function transcriptAsMarkdown(
   transcript: Transcript,
   recording: Recording | null,
+  briefs: Brief[] = [],
 ): string {
   const lines: string[] = [`# ${recording?.title ?? "Transcript"}`, ""];
 
@@ -110,6 +112,40 @@ export function transcriptAsMarkdown(
   }
   if (transcript.derivedFrom) {
     lines.push(`Derived from${":"} ${transcript.derivedFrom}`);
+  }
+
+  /*
+   * Briefs come before the transcript, and each says which model wrote it.
+   *
+   * Defaulting to none keeps this additive: a transcript nobody has enriched
+   * produces exactly the file it did before — no empty headings, nothing to
+   * explain. §3.7 again, in a file rather than on a screen.
+   */
+  for (const brief of briefs) {
+    lines.push("", `## Brief — ${brief.providerId} ${brief.modelId}`, "");
+    if (brief.headline) lines.push(brief.headline, "");
+    for (const [label, body] of [
+      ["Summary", brief.summary],
+      ["Overview", brief.overview],
+      ["Conclusion", brief.conclusion],
+    ] as const) {
+      if (body) lines.push(`### ${label}`, "", body, "");
+    }
+
+    const names = Object.entries(brief.speakerNames ?? {});
+    if (names.length > 0) {
+      lines.push("### Speakers", "");
+      for (const [index, name] of names) {
+        lines.push(`- Speaker ${Number(index) + 1}${":"} ${name}`);
+      }
+      // Said in the file as well as on screen: whoever reads this later has no
+      // other way to know a name was a model's inference, not a recognition.
+      lines.push(
+        "",
+        `Names inferred by ${brief.providerId} from what was said, not recognised from the voices.`,
+        "",
+      );
+    }
   }
 
   lines.push("", "## Transcript", "");
@@ -144,6 +180,7 @@ export function transcriptAsJson(
   transcript: Transcript,
   recording: Recording | null,
   exportedAt: Date,
+  briefs: Brief[] = [],
 ): string {
   return JSON.stringify(
     {
@@ -161,6 +198,9 @@ export function transcriptAsJson(
           }
         : null,
       transcript,
+      // Whole, like the transcript above it, so an export round-trips rather
+      // than being a lossy view (§3.4's "complete machine-readable data").
+      briefs,
     },
     null,
     2,
@@ -178,6 +218,7 @@ export function exportTranscript(
   recording: Recording | null,
   format: ExportFormat,
   exportedAt: Date,
+  briefs: Brief[] = [],
 ): ExportedFile {
   // The model is in the name because a Recording can have several transcripts
   // and they would otherwise land in a downloads folder as near-identical files.
@@ -194,14 +235,14 @@ export function exportTranscript(
   if (format === "md") {
     return {
       name: `${stem}.md`,
-      content: transcriptAsMarkdown(transcript, recording),
+      content: transcriptAsMarkdown(transcript, recording, briefs),
       mimeType: "text/markdown",
     };
   }
 
   return {
     name: `${stem}.json`,
-    content: transcriptAsJson(transcript, recording, exportedAt),
+    content: transcriptAsJson(transcript, recording, exportedAt, briefs),
     mimeType: "application/json",
   };
 }

@@ -32,6 +32,7 @@ import {
 } from "@/features/transcription";
 import { OptionPicker } from "@/components/option-picker";
 import { ExportPicker } from "@/components/export-picker";
+import { briefsFor } from "@/features/enrichment";
 import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
 import { BusyIndicator } from "@/components/busy-indicator";
 import { PlaybackControls } from "@/components/playback-controls";
@@ -205,7 +206,12 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const exportTranscriptAs = (format: ExportFormat) => {
     setExporting(false);
     if (!selected) return;
-    void shareTranscript(selected, recording, format).then(report);
+    // Read at the moment of export rather than held: this screen lists
+    // transcripts, and whichever is selected may have briefs it has never
+    // shown.
+    void shareTranscript(selected, recording, format, briefsFor(selected.id)).then(
+      report,
+    );
   };
 
   const shareAudio = () => {

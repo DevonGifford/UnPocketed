@@ -312,7 +312,9 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
         onSelect={(format: ExportFormat) => {
           setExporting(false);
           setFailure(null);
-          void shareTranscript(transcript, recording ?? null, format).then(
+          // The briefs already on screen go into the file, so an export is
+          // what the user is looking at rather than a subset of it.
+          void shareTranscript(transcript, recording ?? null, format, briefs).then(
             (outcome) => setFailure(outcome.status === "failed" ? outcome : null),
           );
         }}
