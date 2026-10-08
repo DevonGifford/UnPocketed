@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import { Platform } from "react-native";
 
 import type { Recording, RecordingSource } from "@/types";
 
@@ -190,6 +191,18 @@ export async function persistRecording(args: {
  * @returns Recordings with durable audio paths; recovered items use fallback metadata.
  */
 export function listPersistedRecordings(): Recording[] {
+  /*
+   * Web has no file system: `expo-file-system`'s web build throws from the
+   * `Directory` constructor, which took the whole Home screen down. Browser
+   * mode exists only as a development preview of the interface (§6 makes web a
+   * non-goal), and an empty library is what it should honestly show.
+   *
+   * A platform check rather than a try/catch: on Android a directory that
+   * cannot be read is a real failure about stored audio, and §3.2 means it has
+   * to surface rather than be flattened into "no recordings".
+   */
+  if (Platform.OS === "web") return [];
+
   const directory = recordingsDirectory();
 
   const audioFiles = directory

@@ -37,20 +37,29 @@ Go back to `pnpm expo run:android` only when you add or change a native dependen
 
 ## 2. In a web browser — interface only
 
-> [!WARNING]
-> **Browser mode is currently broken** and has been since the move to Uniwind
-> (v0.0.2). The app bundles and serves, but React never mounts — the page stays
-> blank with `TypeError: Cannot read properties of undefined (reading
-> 'default')` in the console.
+> [!NOTE]
+> **Browser mode works again as of 2026-10-08**, after being broken since the
+> move to Uniwind (v0.0.2). Three separate faults were stacked on top of each
+> other, and each hid the next:
 >
-> This is an upstream Uniwind bug, not a configuration mistake:
-> [uni-stack/uniwind#704](https://github.com/uni-stack/uniwind/issues/704),
-> a circular import when `react-native-web` 0.21.3+ loads the React Native root
-> via `InputAccessoryView`. We are on exactly 0.21.3. It has been fixed three
-> times upstream (#697, #703, #706) and regressed, and the issue is open.
+> 1. **Uniwind [#704](https://github.com/uni-stack/uniwind/issues/704)** — React
+>    never mounted and the page stayed blank with `TypeError: Cannot read
+>    properties of undefined (reading 'default')`. **Fixed by uniwind 1.12.2.**
+>    Confirmed by isolation: 1.12.1 with `react-native-web` 0.21.4 still fails,
+>    so the Uniwind patch is what matters and the web-only bump is irrelevant.
+> 2. **`wasm` was missing from Metro's `assetExts`** — Expo's own default config
+>    omits it, not Uniwind's doing. `expo-sqlite`'s web worker imports
+>    `wa-sqlite.wasm` directly, so the import failed to resolve, the worker chunk
+>    was never emitted, and the serializer aborted with "Worker chunk not found".
+>    Added in `metro.config.js`.
+> 3. **`web.output` was `static`** — static rendering runs the app at build time,
+>    which drags that worker into the dev server's serializer, where chunks
+>    cannot be emitted at all. Now `single`. Web is a preview, not a deployed
+>    site, so server rendering bought nothing.
 >
-> **Android is unaffected.** Use a device until this clears; re-test by simply
-> running the command below once Uniwind updates.
+> **Android is unaffected by 2 and 3** — both are web-only paths. The Uniwind
+> bump is a patch release that *does* touch the native styling engine, and has
+> not been checked on a device.
 
 ```bash
 pnpm expo start --web
@@ -58,7 +67,9 @@ pnpm expo start --web
 
 Serves the app at `http://localhost:8081` through `react-native-web`. No device, no cable, no native build.
 
-**What it is good for, when it works.** Every screen runs on mock fixtures, so layout, design tokens, dark mode and navigation all iterate faster in a browser than on hardware.
+**What it is good for.** Layout, design tokens, dark mode and navigation all iterate faster in a browser than on hardware, with Fast Refresh and no cable.
+
+**The library is always empty.** Web has no file system, so `listPersistedRecordings`, `listPersistedTranscripts` and `listPersistedBriefs` return nothing there rather than throwing — the guard is an explicit `Platform.OS === "web"` check, not a `try`/`catch`, so a genuine read failure on Android still surfaces (§3.2). The practical consequence: **the list screens render but the detail screens cannot be reached**, because there is nothing to open.
 
 **What it will never do.** Web is a development convenience, not a product surface — §6 of the spec lists "a web dashboard" among the explicit non-goals, and a web companion is parked as a future idea rather than planned work. None of the features that define the app have a web implementation:
 

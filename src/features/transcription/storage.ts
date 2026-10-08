@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import { Platform } from "react-native";
 
 import type { Transcript, TranscriptionJob } from "@/types";
 
@@ -119,6 +120,14 @@ export function writeTranscript(transcript: Transcript): void {
 
 /** Every Transcript on disk, newest first. Unreadable sidecars are skipped. */
 export function listPersistedTranscripts(): Transcript[] {
+  /*
+   * Web has no file system (see the note in features/recording/storage.ts).
+   * Browser mode is a development preview of the interface only, so an empty
+   * list is the honest answer; a platform check rather than a try/catch keeps
+   * a real read failure on Android loud.
+   */
+  if (Platform.OS === "web") return [];
+
   const found = filesIn(transcriptsDirectory(), TRANSCRIPT_SUFFIX)
     .map((file) => readJson<Transcript>(file))
     .filter((t): t is Transcript => t !== null && typeof t.id === "string");
