@@ -1,6 +1,11 @@
 import { File, UploadType } from "expo-file-system";
 
 import {
+  millisecondsAreMilliseconds,
+  toSegments,
+  type RawTurn,
+} from "./speakers";
+import {
   TranscriptionAborted,
   TranscriptionError,
   type AudioSource,
@@ -57,6 +62,8 @@ interface TranscriptResponse {
   text?: string | null;
   error?: string | null;
   speech_model_used?: string | null;
+  /** Present only when `speaker_labels` was requested. Offsets are in ms. */
+  utterances?: RawTurn[] | null;
 }
 
 function delay(ms: number): Promise<void> {
@@ -66,6 +73,9 @@ function delay(ms: number): Promise<void> {
 /** Maps an HTTP status onto something the UI can explain and act on. */
 function kindForStatus(status: number): TranscriptionErrorKind {
   if (status === 401 || status === 403) return "unauthorized";
+  // Valid key, empty wallet. Under bring-your-own-key the balance is the
+  // user's, so this needs saying rather than reading as a provider fault.
+  if (status === 402) return "insufficient-credit";
   if (status === 413) return "too-large";
   return "provider-failed";
 }
@@ -220,6 +230,8 @@ async function awaitCompletion(
         text: job.text ?? "",
         // What actually ran, not what was asked for (§20).
         modelId: job.speech_model_used ?? modelId,
+        // Already milliseconds here; Deepgram's are float seconds.
+        segments: toSegments(job.utterances, millisecondsAreMilliseconds),
       };
     }
 
@@ -244,9 +256,36 @@ async function submit(
 ): Promise<string> {
   const job = await request<TranscriptResponse>("/transcript", apiKey, {
     method: "POST",
-    // `speech_models` plural: the singular form this replaced is streaming-only.
-    body: { audio_url: audioUrl, speech_models: [options.modelId] },
-    signal: options.signal,
+    body: {
+      audio_url: audioUrl,
+      // `speech_models` plural: the singular form this replaced is streaming-only.
+      speech_models: [options.modelId],
+      /*
+       * Sent only when asked for, and never defaulted on. AssemblyAI bills
+       * diarization as an add-on — +$0.02/hr against universal-2's $0.15 — so
+       * requesting it unasked would raise the user's bill by about 13% for
+       * speaker labels a solo voice memo cannot use.
+       *
+       * Deliberately no `speakers_expected`: AssemblyAI's docs say to set it
+       * only when the count is certain, and Unpocketed never is.
+       */
+      ...(options.diarize ? { speaker_labels: true } : {}),
+    },
+    /*
+     * The caller's `signal` is deliberately **not** passed here.
+     *
+     * §18 defines it as "stops polling; does not cancel the provider's job",
+     * and submitting is not polling — it is the step that *creates* the job.
+     * Aborting it leaves the worst possible state: the audio has already been
+     * uploaded (the upload ignores the signal and cannot be stopped), and the
+     * request that would have turned those bytes into a transcript never goes
+     * out. The job is then stranded with no reference, so nothing can re-attach
+     * to it and the upload is wasted.
+     *
+     * Letting submission finish is what makes the reference exist, and the
+     * reference is the whole architecture: polling can be abandoned safely
+     * precisely because the job survives it.
+     */
   });
 
   if (!job.id) {
@@ -269,6 +308,10 @@ export function createAssemblyAI(apiKey: string): TranscriptionProvider {
       // No documented duration ceiling below the size one, so size decides.
       supportsDiarization: true,
     },
+    requiresApiKey: true,
+    diarizationNotice:
+      "AssemblyAI charges extra to identify speakers — about $0.02 per hour on top of the model's own rate.",
+
     models: [
       { id: "universal-2", name: "Universal-2" },
       { id: "universal-3-5-pro", name: "Universal-3.5 Pro" },

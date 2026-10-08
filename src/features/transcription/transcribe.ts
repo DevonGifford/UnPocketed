@@ -2,14 +2,18 @@ import { File } from "expo-file-system";
 
 import { findRecording } from "@/features/library";
 import {
-  resolveProvider,
   TranscriptionAborted,
   TranscriptionError,
   type TranscriptionProvider,
 } from "@/providers/transcription";
-import type { Transcript, TranscriptionJob } from "@/types";
+import type {
+  Transcript,
+  TranscriptionJob,
+  TranscriptSegment,
+} from "@/types";
 
 import { transcriptionFailure, type TranscriptionFailure } from "./errors";
+import { resolveProvider, resolveSelectedProvider } from "./provider";
 import { allJobs, completeJob, jobFor, saveJob } from "./repository";
 import { newTranscriptId, transcriptIdForJob } from "./storage";
 
@@ -99,6 +103,23 @@ function outcomeAfterSubmit(
   return { status: "detached", reason: transcriptionFailure("poll-interrupted") };
 }
 
+/**
+ * Why a job with no reference cannot be recovered, which depends on the kind of
+ * Provider that took it.
+ *
+ * A Provider with `resume` issues a reference, so its absence means the app
+ * died in the narrow window between sending the request and being handed one.
+ * A Provider without `resume` never issues one at all, so for that one the
+ * absence says nothing about how far the work got — it may have run to
+ * completion and been billed, with the reply lost. Two different facts, and
+ * telling the user the wrong one is how a promise about charges becomes untrue.
+ */
+function reasonForMissingJobRef(
+  provider: TranscriptionProvider,
+): "interrupted-before-upload" | "interrupted-unresumable" {
+  return provider.resume ? "interrupted-before-upload" : "interrupted-unresumable";
+}
+
 /** Records a failure on the job so the recording reads `failed` (§21). */
 function recordFailure(
   job: TranscriptionJob,
@@ -120,7 +141,7 @@ function recordFailure(
 /** Turns a provider result into the Transcript that gets stored. */
 function transcriptFrom(
   job: TranscriptionJob,
-  result: { text: string; modelId: string },
+  result: { text: string; modelId: string; segments?: TranscriptSegment[] },
 ): Transcript {
   const timestamp = nowIso();
   return {
@@ -132,6 +153,13 @@ function transcriptFrom(
     // What actually ran (§20), which a provider may have substituted.
     modelId: result.modelId,
     text: result.text,
+    /*
+     * Spread so the key is absent rather than explicitly undefined. §10 makes
+     * absence mean "not asked for or not available", and a transcript that
+     * serialises `"segments": undefined` would lose that distinction on the
+     * round trip through JSON.
+     */
+    ...(result.segments?.length ? { segments: result.segments } : {}),
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -145,14 +173,28 @@ async function finish(
   signal?: AbortSignal,
 ): Promise<TranscribeOutcome> {
   if (!provider.resume) {
-    // A synchronous provider has nothing to re-attach to, so an interrupted
-    // transcription is simply gone. Say so rather than waiting on nothing.
-    const failure = transcriptionFailure("unknown", true);
+    /*
+     * Unreachable for both providers v0.1 ships, and kept deliberately.
+     *
+     * This function is only called with a job reference in hand, and a
+     * provider that issues one implements `resume` — Deepgram issues none, so
+     * a stranded Deepgram job is failed by `reasonForMissingJobRef` at the two
+     * resume sites instead, which is the path to trace when debugging one.
+     * This branch covers a provider that hands back a reference and offers no
+     * way to ask after it, which is permitted by the interface and would
+     * otherwise wait on a `resume` that does not exist.
+     */
+    const failure = transcriptionFailure("interrupted-unresumable", true);
     recordFailure(job, failure);
     return { status: "failed", failure };
   }
 
   try {
+    /*
+     * No `diarize` here, and that is not an omission. Resuming re-reads a job
+     * the provider is already running; what it was asked for was decided when
+     * it was submitted, and sending a different answer now could not change it.
+     */
     const result = await provider.resume(jobRef, {
       modelId: job.modelId,
       signal,
@@ -179,10 +221,11 @@ export async function transcribeRecording(
   recordingId: string,
   signal?: AbortSignal,
 ): Promise<TranscribeOutcome> {
-  const provider = await resolveProvider();
-  if (!provider) {
+  const selected = await resolveSelectedProvider();
+  if (!selected) {
     return { status: "failed", failure: transcriptionFailure("not-configured", false) };
   }
+  const { provider, modelId, diarize } = selected;
 
   const recording = findRecording(recordingId);
   if (!recording) {
@@ -217,8 +260,14 @@ export async function transcribeRecording(
   try {
     job = saveJob({
       recordingId,
+      /*
+       * Both recorded on the job, not read back from the current selection.
+       * The user may switch Provider while this is in flight — that is the
+       * capability PR8 adds — and resuming must ask the Provider that holds
+       * the work, not whichever one is selected when the app next starts.
+       */
       providerId: provider.id,
-      modelId: provider.defaultModelId,
+      modelId,
       jobRef: null,
       state: "transcribing",
       error: null,
@@ -232,7 +281,14 @@ export async function transcribeRecording(
   }
 
   try {
-    return await runTranscription(provider, job, recording, audioFile, signal);
+    return await runTranscription(
+      provider,
+      job,
+      recording,
+      audioFile,
+      diarize,
+      signal,
+    );
   } finally {
     polling.delete(recordingId);
   }
@@ -244,6 +300,7 @@ async function runTranscription(
   started: TranscriptionJob,
   recording: { audioPath: string; mimeType: string },
   audioFile: File,
+  diarize: boolean,
   signal?: AbortSignal,
 ): Promise<TranscribeOutcome> {
   let job = started;
@@ -257,6 +314,7 @@ async function runTranscription(
       },
       {
         modelId: job.modelId,
+        diarize,
         signal,
         onJobRef: (jobRef) => {
           /*
@@ -277,9 +335,9 @@ async function runTranscription(
 
     return { status: "transcribed", transcript: completeJob(transcriptFrom(job, result)) };
   } catch (error) {
-    // Which half failed decides everything. Before a reference exists nothing
-    // is running and nothing was charged, so recording a failure is right and
-    // retrying is free. After one exists, see `outcomeAfterSubmit`.
+    // A missing reference does not prove the Provider did no work: its reply
+    // may have been lost, or a synchronous Provider may already have billed.
+    // Once a reference exists, preserve the job for `outcomeAfterSubmit`.
     if (job.jobRef) return outcomeAfterSubmit(job, error);
 
     if (error instanceof TranscriptionAborted) return { status: "detached" };
@@ -307,28 +365,36 @@ export async function resumeJobFor(
   recordingId: string,
   signal?: AbortSignal,
 ): Promise<TranscribeOutcome> {
-  // TODO(PR8): Read the job first and use job.providerId to choose the provider.
-  // Otherwise a job started with another provider cannot be resumed after a
-  // provider switch.
+  /*
+   * The job is read **before** the Provider, and the Provider comes from
+   * `job.providerId`. Resolving the current selection first and polling with it
+   * would hand an AssemblyAI job reference to Deepgram's client and key the
+   * moment the user switched — which PR8 is precisely the PR that makes
+   * possible. A job belongs to the Provider that took it, for its whole life.
+   */
+  const job = jobFor(recordingId);
+  if (!job || job.state !== "transcribing") return { status: "detached" };
+
   let provider: TranscriptionProvider | null;
   try {
-    provider = await resolveProvider();
+    provider = await resolveProvider(job.providerId);
   } catch {
     return { status: "detached" };
   }
+  /*
+   * No key for *that* Provider, or it is no longer registered. Left
+   * `transcribing` rather than failed: the job may still be running and paid
+   * for, and restoring the key in Settings makes it resumable again. Failing it
+   * here would invite a retry that bills for the same audio twice.
+   */
   if (!provider) return { status: "detached" };
-
-  const job = jobFor(recordingId);
-  if (!job || job.state !== "transcribing") return { status: "detached" };
 
   // Someone is already watching this one — the launch-time resume, or a screen
   // that claimed it first. Two pollers would duplicate every request.
   if (!claimPolling(recordingId)) return { status: "detached" };
 
   if (!job.jobRef) {
-    // Nothing was ever submitted, so nothing is running and nothing was
-    // charged. Fail it so the user can retry knowingly.
-    const failure = transcriptionFailure("interrupted-before-upload", true);
+    const failure = transcriptionFailure(reasonForMissingJobRef(provider), true);
     recordFailure(job, failure);
     polling.delete(recordingId);
     return { status: "failed", failure };
@@ -345,8 +411,8 @@ export async function resumeJobFor(
  * Re-attaches to every job left in flight by a previous run (§18).
  *
  * Run once at startup. A job with a reference is polled to completion; one
- * without never reached the provider, so there is nothing running and nothing
- * paid for, and it is cleared rather than left spinning forever.
+ * without a reference cannot be resumed. Its failure message depends on
+ * whether that Provider normally issues references; see `reasonForMissingJobRef`.
  *
  * @returns The Transcripts recovered, for the caller to surface.
  * @throws Never.
@@ -354,23 +420,43 @@ export async function resumeJobFor(
 export async function resumeOutstandingJobs(
   signal?: AbortSignal,
 ): Promise<Transcript[]> {
-  let provider: TranscriptionProvider | null;
-  try {
-    provider = await resolveProvider();
-  } catch {
-    return [];
-  }
-  if (!provider) return [];
-
   const outstanding = allOutstanding();
   const recovered: Transcript[] = [];
 
+  /*
+   * One Provider per id, built once and reused across the sweep.
+   *
+   * Resolved **per job** rather than once up front, which is the bug a second
+   * Provider turns from theory into certainty: a single Provider resolved
+   * before the loop would poll every outstanding job with it, so after a switch
+   * an AssemblyAI reference would be sent to Deepgram's endpoint with
+   * Deepgram's key. The cache is only to avoid re-reading the same key from the
+   * keystore once per job.
+   */
+  const resolved = new Map<string, TranscriptionProvider | null>();
+  const providerFor = async (providerId: string) => {
+    if (resolved.has(providerId)) return resolved.get(providerId) ?? null;
+    let provider: TranscriptionProvider | null = null;
+    try {
+      provider = await resolveProvider(providerId);
+    } catch {
+      provider = null;
+    }
+    resolved.set(providerId, provider);
+    return provider;
+  };
+
   for (const job of outstanding) {
+    const provider = await providerFor(job.providerId);
+    /*
+     * Its Provider is unresolvable — no key stored, or no longer registered.
+     * Left `transcribing` rather than failed, so restoring the key in Settings
+     * recovers a job that may still be running and already paid for.
+     */
+    if (!provider) continue;
+
     if (!job.jobRef) {
-      // TODO(PR7 review): We may have sent the request and lost its reply.
-      // Without a reference we cannot resume it, but we cannot promise that
-      // the provider received nothing or charged nothing either.
-      recordFailure(job, transcriptionFailure("interrupted-before-upload", true));
+      recordFailure(job, transcriptionFailure(reasonForMissingJobRef(provider), true));
       continue;
     }
 

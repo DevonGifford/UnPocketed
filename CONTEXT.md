@@ -47,12 +47,28 @@ Producing an additional Transcript for a Recording that already has one. Additiv
 _Avoid_: re-run, redo, regenerate, refresh, update
 
 **Provider**:
-An external service that performs Transcription, chosen and paid for by the user. Reached through an adapter, so the rest of the application stays ignorant of which one is in use.
+A service that performs Transcription — speech to text, and nothing else. Chosen by the user, and paid for directly by them where it is a remote one. Reached through an adapter, so the rest of the application stays ignorant of which one is in use.
+
+Deliberately no longer "an external service": an on-device Provider needs no API key and no network, and the word has to still fit when one lands (§40). A later layer that reads a Transcript and derives a title, a summary or speaker turns from it is a different job answered by different services, and must not borrow this word.
 _Avoid_: vendor, backend, server, API, service, integration
 
 **Model**:
 The specific speech-to-text model used within a Provider. Selected independently of the Provider where the Provider allows it, and recorded on every Transcript.
+
+Scoped to transcription on purpose. It does not mean any model Unpocketed might one day send text to — only the one that turned audio into this Transcript's words.
 _Avoid_: engine, algorithm, version
+
+**Segment**:
+One continuous stretch of speech within a Transcript attributed to a single Speaker, with its offsets into the Recording. A Transcript has either none or several — never exactly one meaningful turn.
+_Avoid_: utterance (that is the providers' word), turn, chunk, line, block, bubble
+
+**Speaker**:
+A participant in a Recording, as separated by the Provider's diarization. Identified by a 0-based index within one Transcript and **nothing more** — it is a label, not a person: Speaker 1 in one Transcript is not the same human as Speaker 1 in another, even for the same Recording. Unpocketed never infers a Speaker from text and never names one.
+_Avoid_: participant, person, voice, user, channel
+
+**Diarization**:
+The Provider's separation of a Recording into Speakers. Requested per transcription and chargeable at some Providers, so it is the user's choice rather than always on.
+_Avoid_: speaker detection, speaker ID, voice recognition (that implies identifying *who*, which this does not do)
 
 ### Ownership
 

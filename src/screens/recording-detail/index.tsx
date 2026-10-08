@@ -16,10 +16,18 @@ import {
 } from "@/features/library";
 import { usePlayback } from "@/features/playback";
 import {
+  chooseModel,
+  chooseProvider,
+  currentSelection,
   deleteTranscript,
   deleteTranscriptsFor,
+  listTranscriptionTargets,
   useRecordingTranscription,
+  type TranscriptionTarget,
 } from "@/features/transcription";
+import { OptionPicker } from "@/components/option-picker";
+import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
+import { BusyIndicator } from "@/components/busy-indicator";
 import { PlaybackControls } from "@/components/playback-controls";
 import { InterruptedNotice } from "@/components/interrupted-notice";
 import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
@@ -73,6 +81,11 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const [renaming, setRenaming] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deletingTranscript, setDeletingTranscript] = useState(false);
+  const [retranscribing, setRetranscribing] = useState(false);
+  const [targets, setTargets] = useState<TranscriptionTarget[]>([]);
+  // Which target a plain Transcribe would use, read when the picker opens
+  // rather than during render — see the note in Settings about hoisting.
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
 
   /*
    * A recovered recording's stored duration is estimated from its file size,
@@ -109,7 +122,7 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   const {
     transcripts,
     state: transcriptionState,
-    busy: transcribing,
+
     failure: transcriptionFailure,
     transcribe,
     dismissFailure: dismissTranscriptionFailure,
@@ -128,6 +141,49 @@ export function RecordingDetailScreen({ id }: { id: string }) {
   // tapped would read as an empty transcript rather than as a chooser.
   const selected =
     transcripts.find((t) => t.id === selectedTranscriptId) ?? transcripts[0] ?? null;
+
+  /*
+   * Opens the picker, then fills it in.
+   *
+   * The list is loaded on open rather than held in state, because readiness
+   * depends on the keystore and a key can be added in Settings between visits.
+   * The dialog opens first so the tap feels immediate; an empty list for a
+   * frame is better than a tap that does nothing while a read completes.
+   */
+  const openRetranscribe = () => {
+    setRetranscribing(true);
+
+    const selection = currentSelection();
+    setSelectedTarget(
+      selection ? `${selection.providerId}/${selection.modelId}` : null,
+    );
+
+    void listTranscriptionTargets().then(setTargets);
+  };
+
+  /**
+   * Starts a transcription with a chosen Provider and Model.
+   *
+   * The choice is **persisted** rather than passed through as a one-off
+   * override, so Settings and this screen can never disagree about what the
+   * next transcription will use. It is the same two writes Settings performs,
+   * which is why no override parameter had to be threaded into
+   * `transcribeRecording`.
+   */
+  const retranscribeWith = (target: TranscriptionTarget) => {
+    setRetranscribing(false);
+    try {
+      chooseProvider(target.providerId);
+      chooseModel(target.providerId, target.modelId);
+    } catch {
+      // The choice could not be stored, so transcribing now would silently use
+      // the previous one and attribute the result to it. Settings reports the
+      // same failure; stopping here is better than a transcript the user did
+      // not ask for and will be billed for.
+      return;
+    }
+    transcribe();
+  };
 
   return (
     <Screen>
@@ -162,9 +218,12 @@ export function RecordingDetailScreen({ id }: { id: string }) {
 
         {transcripts.length === 0 ? (
           <View className="gap-3 px-4 py-6">
+            {transcriptionState === "transcribing" ? (
+              <BusyIndicator label="Transcribing…" />
+            ) : null}
             <Text variant="subhead">
               {transcriptionState === "transcribing"
-                ? "Transcribing…"
+                ? "This can take a few minutes for a long recording. You can leave this screen — it keeps going."
                 : transcriptionState === "failed"
                   ? "The last attempt failed. Your recording is safe on this device."
                   : recording.interrupted
@@ -199,6 +258,19 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           </View>
         ) : (
           <>
+            {/*
+              A retranscription with transcripts already on screen changed
+              nothing but a button's label, so it read as a tap that did
+              nothing. The existing transcripts stay visible and readable while
+              the new one is produced — §22 makes it additive, so there is no
+              reason to hide them.
+            */}
+            {transcriptionState === "transcribing" ? (
+              <View className="px-4 pt-3">
+                <BusyIndicator label="Transcribing…" />
+              </View>
+            ) : null}
+
             <View className="flex-row gap-2 px-4 py-3">
               {transcripts.map((t) => {
                 const isSelected = t.id === selectedTranscriptId;
@@ -226,10 +298,9 @@ export function RecordingDetailScreen({ id }: { id: string }) {
                 {/* §20: a transcript must always say which provider and model made it. */}
                 <Text variant="caption">
                   {selected.providerId} · {selected.modelId}
+                  {speakerSummary(selected) ? ` · ${speakerSummary(selected)}` : ""}
                 </Text>
-                <Text variant="body" selectable>
-                  {selected.text}
-                </Text>
+                <TranscriptBody transcript={selected} />
               </View>
             ) : null}
           </>
@@ -246,7 +317,8 @@ export function RecordingDetailScreen({ id }: { id: string }) {
             <Text variant="body">{transcriptionFailure.detail}</Text>
             <View className="flex-row">
               <Action label="Dismiss" onPress={dismissTranscriptionFailure} />
-              {transcriptionFailure.retryable && !transcribing ? (
+              {transcriptionFailure.retryable &&
+              transcriptionState !== "transcribing" ? (
                 <Action label="Try again" onPress={transcribe} />
               ) : null}
             </View>
@@ -255,7 +327,33 @@ export function RecordingDetailScreen({ id }: { id: string }) {
 
         <View className="mt-8 border-t border-border">
           <Action label="Rename recording" onPress={() => setRenaming(true)} />
-          <Action label="Retranscribe with another model" />
+          {/*
+            §22: retranscription is a first-class capability, so this is the
+            control that makes provider choice verifiable rather than
+            ideological — the user compares two transcripts of their own audio
+            instead of taking our word for which recogniser is better. Hidden
+            for an Interrupted Recording, whose audio no decoder can read.
+          */}
+          {recording.interrupted || transcripts.length === 0 ? null : (
+            /*
+             * Hidden until there is something to retranscribe *from*. The
+             * action list renders in both branches of the empty-state ternary
+             * above, so without this gate a never-transcribed recording offers
+             * both "Transcribe" and "Retranscribe with another model" — and the
+             * second label is simply untrue there. §22 is about producing an
+             * additional transcript, which needs a first one to exist.
+             */
+            <Action
+              label={
+                transcriptionState === "transcribing"
+                  ? "Transcribing…"
+                  : "Retranscribe with another model"
+              }
+              onPress={
+                transcriptionState === "transcribing" ? undefined : openRetranscribe
+              }
+            />
+          )}
           <Action label="Export transcript" />
           <Action label="Share original audio" />
           {selected ? (
@@ -272,6 +370,27 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           />
         </View>
       </ScrollView>
+
+      <OptionPicker
+        open={retranscribing}
+        onOpenChange={setRetranscribing}
+        title="Transcribe with"
+        description="This adds a transcript rather than replacing the ones you have, so you can compare them. Your recording is never changed."
+        options={targets.map((target) => ({
+          id: `${target.providerId}/${target.modelId}`,
+          label: `${target.providerName} · ${target.modelName}`,
+          detail: target.ready
+            ? undefined
+            : `Needs a ${target.providerName} API key in Settings`,
+        }))}
+        selectedId={selectedTarget}
+        onSelect={(id) => {
+          const target = targets.find(
+            (candidate) => `${candidate.providerId}/${candidate.modelId}` === id,
+          );
+          if (target) retranscribeWith(target);
+        }}
+      />
 
       <RenameRecordingDialog
         open={renaming}

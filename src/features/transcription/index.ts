@@ -6,6 +6,25 @@ export {
   type TranscriptionFailureReason,
 } from "./errors";
 export {
+  chooseDiarize,
+  chooseModel,
+  chooseProvider,
+  diarizeEnabled,
+  effectiveSelection,
+  readPreferences,
+  resetPreferencesCache,
+  type TranscriptionPreferences,
+  type TranscriptionSelection,
+} from "./preferences";
+export {
+  currentProviderDescriptor,
+  currentSelection,
+  listTranscriptionTargets,
+  resolveProvider,
+  resolveSelectedProvider,
+  type TranscriptionTarget,
+} from "./provider";
+export {
   allJobs,
   clearJob,
   deleteTranscript,

@@ -15,6 +15,12 @@ import {
 import { groupTranscriptsByRecording, transcriptionStateOf } from "./state";
 import { resumeJobFor, transcribeRecording } from "./transcribe";
 
+/**
+ * Stands in for a job reference that does not exist yet, so an outstanding job
+ * without one is still distinguishable from "nothing attached".
+ */
+const NO_JOB_REF = "\u0000no-job-ref";
+
 /*
  * Transcription's screen state.
  *
@@ -34,9 +40,19 @@ function ensureReconciled(force = false): void {
 export interface RecordingTranscription {
   transcripts: Transcript[];
   job: TranscriptionJob | null;
-  /** §21's state for this Recording, derived rather than stored. */
+  /**
+   * §21's state for this Recording, derived rather than stored.
+   *
+   * Reflects a transcription running in this screen immediately, without
+   * waiting for the stored job to be re-read — see the note where it is built.
+   */
   state: TranscriptionState;
-  /** Set while a transcription is running in *this* screen. */
+  /**
+   * Set while a transcription is running in *this* screen.
+   *
+   * Prefer {@link state} for anything user-facing: this one cannot tell that a
+   * transcription started elsewhere, or survived a remount, is still running.
+   */
   busy: boolean;
   failure: TranscriptionFailure | null;
   /** Starts, or retries, transcription. Ignored while one is running. */
@@ -97,12 +113,19 @@ export function useRecordingTranscription(
     const current = jobFor(recordingId);
     setJob(current);
 
-    if (
-      current?.state === "transcribing" &&
-      current.jobRef &&
-      attachedTo.current !== current.jobRef
-    ) {
-      attachedTo.current = current.jobRef;
+    /*
+     * A job with no reference is still a job this screen has to resolve.
+     *
+     * The guard used to require `current.jobRef`, so a job stranded without
+     * one — the app killed mid-upload, or a submission that never completed —
+     * showed "Transcribing…" for the rest of the session with nothing polling
+     * it. `resumeJobFor` already knows what to do with a reference-less job:
+     * fail it with a reason the user can act on. It just was never called.
+     */
+    const handle = current?.jobRef ?? NO_JOB_REF;
+
+    if (current?.state === "transcribing" && attachedTo.current !== handle) {
+      attachedTo.current = handle;
 
       const controller = new AbortController();
       abort.current = controller;
@@ -157,7 +180,19 @@ export function useRecordingTranscription(
   return {
     transcripts,
     job,
-    state: transcriptionStateOf(job, transcripts.length),
+    /*
+     * `busy` is folded in rather than left as a second signal beside this one.
+     *
+     * The stored job is only re-read when a transcription *finishes*, so while
+     * one runs this derived from a job that still said `failed` or
+     * `not-transcribed` — and the screen showed "Try again" next to a spinner
+     * that never appeared, for a minute at a time. Two signals for one fact is
+     * how they end up disagreeing, and every consumer picked a different one.
+     *
+     * A transcription running in this screen *is* the recording transcribing,
+     * so saying so here is not a UI convenience; it is the state (§21).
+     */
+    state: busy ? "transcribing" : transcriptionStateOf(job, transcripts.length),
     busy,
     failure,
     transcribe,

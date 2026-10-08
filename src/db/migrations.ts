@@ -89,6 +89,26 @@ const migrations: Migration[] = [
       `);
     },
   },
+  {
+    version: 4,
+    up: (db) => {
+      /*
+       * Speaker-attributed turns, stored as a JSON array rather than a table.
+       *
+       * They are read and written only as a whole — nothing queries one turn,
+       * filters by speaker or joins across them — so a `transcript_segments`
+       * table would add a join and a second write path to answer a question
+       * nobody asks. This is an index over the sidecars either way: the
+       * durable copy is the transcript's own JSON file, and this column is
+       * re-derived from it by `reconcileTranscripts`.
+       *
+       * Null for every existing row, which is correct rather than a default:
+       * those transcripts were produced without diarization, and null means
+       * "not asked for or not available" rather than "one speaker" (§10).
+       */
+      db.execSync("ALTER TABLE transcripts ADD COLUMN segments TEXT");
+    },
+  },
 ];
 
 /** The version a fully migrated database reports. */

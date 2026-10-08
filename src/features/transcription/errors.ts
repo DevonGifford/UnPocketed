@@ -24,6 +24,15 @@ export type TranscriptionFailureReason =
   | "not-recorded"
   /** The app died between recording the job and the provider answering. */
   | "interrupted-before-upload"
+  /**
+   * The app died while a Provider that keeps no job was transcribing.
+   *
+   * Distinct from {@link interrupted-before-upload} because there is nothing to
+   * pick up *and* the work may already have been done and billed — a
+   * synchronous Provider returns the transcript in its reply and keeps no copy,
+   * so a lost reply is a lost transcript.
+   */
+  | "interrupted-unresumable"
   /** Contact was lost while polling a job that is still running. Not a failure. */
   | "poll-interrupted";
 
@@ -42,9 +51,16 @@ const FAILURES: Record<
   Omit<TranscriptionFailure, "reason" | "retryable">
 > = {
   "not-configured": {
-    title: "No transcription provider is set up",
+    /*
+     * Phrased to be true in both cases it now covers. With one Provider it
+     * meant "nothing is set up"; with two it also fires when the *selected*
+     * Provider has no key while the other one does, and "no transcription
+     * provider is set up" is then simply false — which is the kind of error
+     * message that makes a user doubt the parts that are working.
+     */
+    title: "That provider has no API key yet",
     detail:
-      "Transcription uses a provider you choose and pay for directly. Add an API key in Settings, then try again. Your recording is safe on this device.",
+      "Transcription uses a provider you choose and pay for directly. Add its API key in Settings, then try again. Your recording is safe on this device.",
   },
   unauthorized: {
     title: "The provider did not accept your API key",
@@ -102,11 +118,28 @@ const FAILURES: Record<
       "Unpocketed could not note down the job before starting it, and would not have been able to recover it if the app closed. Nothing was sent or charged. Try again.",
   },
   "interrupted-before-upload": {
-    // TODO(PR7 review): A submitted request can reach the provider before the
-    // app receives its job reference. Do not promise no charge in that window.
+    /*
+     * This used to promise "nothing was transcribed or charged", which
+     * Unpocketed cannot know. The window this covers is the one between sending
+     * the request and being handed a reference for it, and a request can arrive
+     * and be accepted inside it — so the honest claim is that there is nothing
+     * to recover, not that there is nothing to pay. §32 is worth more than
+     * reassurance here: a promise the user later finds untrue on their own
+     * invoice costs more trust than an admission of uncertainty.
+     */
     title: "Transcription was interrupted before it began",
     detail:
-      "Unpocketed closed before the provider took the job, so nothing was transcribed or charged. Your recording is safe on this device and can be tried again.",
+      "Unpocketed closed before the provider confirmed it had taken the job, so there is nothing left to pick up. It almost certainly never started — if you want to be sure you were not charged, your provider's dashboard will say. Your recording is safe on this device and can be tried again.",
+  },
+  "interrupted-unresumable": {
+    title: "That transcription could not be picked up again",
+    detail:
+      "The provider you chose sends the transcript back in its reply and keeps no copy of it, so Unpocketed closing while it was running lost the result — and you may still have been charged for it. Your recording is safe on this device and can be transcribed again.",
+  },
+  "insufficient-credit": {
+    title: "Your provider account is out of credit",
+    detail:
+      "Transcription is billed by the provider you chose, directly to you — Unpocketed does not pay for it. Add credit to that account, or pick a different provider in Settings. Nothing was transcribed and your recording is safe on this device.",
   },
 };
 
@@ -122,6 +155,9 @@ const NOT_RETRYABLE: TranscriptionFailureReason[] = [
   // The key is wrong or missing: retrying sends the same bad credential.
   "unauthorized",
   "not-configured",
+  // The key is fine and the balance is empty: retrying spends nothing and
+  // fails identically until the user tops up or switches Provider.
+  "insufficient-credit",
   // The audio itself is the problem, and it will not change.
   "too-large",
   "interrupted",

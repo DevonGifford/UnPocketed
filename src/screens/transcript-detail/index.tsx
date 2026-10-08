@@ -3,6 +3,7 @@ import { Screen } from "@/components/screen";
 import { AppHeader } from "@/components/app-header";
 import { HudFrame } from "@/components/hud-frame";
 import { Text } from "@/components/ui/text";
+import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
 import { useRecording } from "@/features/library";
 import { useTranscript } from "@/features/transcription";
 import { formatDuration, formatRecordedAt } from "@/lib/format";
@@ -10,10 +11,11 @@ import { formatDuration, formatRecordedAt } from "@/lib/format";
 /**
  * One Transcript, read in full (§23).
  *
- * The designs also show an executive summary, an AI summary and speaker-
- * attributed turns. Those are §6 non-goals for v0.1 and are not scaffolded
- * here: unlike a navigation destination, inventing summary content would put
- * words on screen that no model produced.
+ * Speaker-attributed turns are real now, and come from the Provider's own
+ * diarization rather than being inferred (§10). The designs also show an
+ * executive summary and an AI summary; those remain §6 non-goals for v0.1 and
+ * are still not scaffolded, because unlike a navigation destination, inventing
+ * summary content would put words on screen that no model produced.
  *
  * §23's reading and selecting are here; editing, copying and exporting are
  * PR9. The text is `selectable` so the platform's own copy already works.
@@ -37,6 +39,8 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
     );
   }
 
+  const speakers = speakerSummary(transcript);
+
   return (
     <Screen>
       <AppHeader />
@@ -57,6 +61,7 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
           <Text variant="caption" className="tabular-nums">
             {formatRecordedAt(transcript.createdAt)}
             {recording ? ` · ${formatDuration(recording.durationMs)}` : ""}
+            {speakers ? ` · ${speakers}` : ""}
           </Text>
         </HudFrame>
 
@@ -64,9 +69,7 @@ export function TranscriptDetailScreen({ transcriptId }: { transcriptId: string 
           <Text variant="body" className="text-primary">
             Transcript
           </Text>
-          <Text variant="body" selectable>
-            {transcript.text}
-          </Text>
+          <TranscriptBody transcript={transcript} />
         </View>
       </ScrollView>
     </Screen>
