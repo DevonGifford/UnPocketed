@@ -27,6 +27,7 @@ import {
 } from "@/features/transcription";
 import { OptionPicker } from "@/components/option-picker";
 import { TranscriptBody, speakerSummary } from "@/components/transcript-body";
+import { BusyIndicator } from "@/components/busy-indicator";
 import { PlaybackControls } from "@/components/playback-controls";
 import { InterruptedNotice } from "@/components/interrupted-notice";
 import { RenameRecordingDialog } from "@/components/rename-recording-dialog";
@@ -217,9 +218,12 @@ export function RecordingDetailScreen({ id }: { id: string }) {
 
         {transcripts.length === 0 ? (
           <View className="gap-3 px-4 py-6">
+            {transcriptionState === "transcribing" ? (
+              <BusyIndicator label="Transcribing…" />
+            ) : null}
             <Text variant="subhead">
               {transcriptionState === "transcribing"
-                ? "Transcribing…"
+                ? "This can take a few minutes for a long recording. You can leave this screen — it keeps going."
                 : transcriptionState === "failed"
                   ? "The last attempt failed. Your recording is safe on this device."
                   : recording.interrupted
@@ -254,6 +258,19 @@ export function RecordingDetailScreen({ id }: { id: string }) {
           </View>
         ) : (
           <>
+            {/*
+              A retranscription with transcripts already on screen changed
+              nothing but a button's label, so it read as a tap that did
+              nothing. The existing transcripts stay visible and readable while
+              the new one is produced — §22 makes it additive, so there is no
+              reason to hide them.
+            */}
+            {transcriptionState === "transcribing" ? (
+              <View className="px-4 pt-3">
+                <BusyIndicator label="Transcribing…" />
+              </View>
+            ) : null}
+
             <View className="flex-row gap-2 px-4 py-3">
               {transcripts.map((t) => {
                 const isSelected = t.id === selectedTranscriptId;

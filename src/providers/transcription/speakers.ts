@@ -39,6 +39,20 @@ export function toSegments(
 ): TranscriptSegment[] | undefined {
   if (!Array.isArray(turns) || turns.length === 0) return undefined;
 
+  /*
+   * Whether any turn was actually attributed to someone.
+   *
+   * A provider can return turns with no `speaker` on them at all — Deepgram
+   * does exactly that when `utterances` is requested without `diarize`. Those
+   * are speech segments, not speaker turns, and treating them as diarization
+   * would file every one of them under speaker 0: output identical to a
+   * genuine single-speaker result, and a claim about who spoke that nothing
+   * supports. §10 reserves absence for "not asked for or not available", and
+   * this is that case.
+   */
+  const anyAttributed = turns.some((turn) => turn.speaker != null);
+  if (!anyAttributed) return undefined;
+
   const indexByLabel = new Map<string, number>();
   const segments: TranscriptSegment[] = [];
 

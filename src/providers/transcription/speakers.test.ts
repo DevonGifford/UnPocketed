@@ -64,6 +64,7 @@ describe("toSegments", () => {
   });
 
   it("keeps an unlabelled turn rather than guessing who said it", () => {
+    // Only where *some* turn was attributed, so diarization clearly ran.
     // Losing the words would be worse than an extra speaker bucket, and
     // folding it into the previous speaker is the invention §10 forbids.
     const turns: RawTurn[] = [
@@ -73,6 +74,29 @@ describe("toSegments", () => {
     expect(toSegments(turns, millisecondsAreMilliseconds)).toEqual([
       { speaker: 0, text: "Known.", startMs: 0, endMs: 1 },
       { speaker: 1, text: "Unattributed.", startMs: 1, endMs: 2 },
+    ]);
+  });
+
+  /*
+   * Deepgram returns utterances with no `speaker` when `utterances` is asked
+   * for without `diarize`. Filing those under speaker 0 would be
+   * indistinguishable from a real single-speaker result, which is exactly the
+   * ambiguity that made a live diarization failure hard to diagnose.
+   */
+  it("is undefined when no turn was attributed to anyone", () => {
+    const turns: RawTurn[] = [
+      { speaker: null, text: "Words.", start: 0, end: 1 },
+      { speaker: undefined, text: "More words.", start: 1, end: 2 },
+    ];
+    expect(toSegments(turns, millisecondsAreMilliseconds)).toBeUndefined();
+  });
+
+  it("keeps a genuine single-speaker result, which is not the same thing", () => {
+    const turns: RawTurn[] = [
+      { speaker: "A", text: "Only me.", start: 0, end: 1 },
+    ];
+    expect(toSegments(turns, millisecondsAreMilliseconds)).toEqual([
+      { speaker: 0, text: "Only me.", startMs: 0, endMs: 1 },
     ]);
   });
 

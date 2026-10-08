@@ -1,14 +1,15 @@
 import { Pressable, View } from "react-native";
 
+import { Switch } from "@/components/ui/switch";
 import { Text } from "@/components/ui/text";
 
 /**
  * A settings row that turns something on or off (§19).
  *
- * Uses a text indicator rather than a `Switch`: the surrounding rows are
- * text-and-chevron in a monospaced interface, and a stock platform switch is
- * the one control that would not belong. `accessibilityRole="switch"` carries
- * the real state to a screen reader regardless of how it is drawn (§31).
+ * The whole row is the touch target, not just the switch — a 48px control at
+ * the far edge of a phone is a small target for a setting whose label is the
+ * thing you actually read. The switch is not separately focusable for the same
+ * reason: one row, one action, one thing announced (§31).
  */
 export function ToggleRow({
   label,
@@ -35,9 +36,14 @@ export function ToggleRow({
         <Text variant="body">{label}</Text>
         {detail ? <Text variant="caption">{detail}</Text> : null}
       </View>
-      <Text variant="subhead" className={value ? "text-foreground" : ""}>
-        {value ? "On" : "Off"}
-      </Text>
+      {/*
+        `pointerEvents="none"`: the row above already handles the press, and a
+        separately tappable switch inside a tappable row produces two targets
+        that do the same thing and one that is much harder to hit.
+      */}
+      <View pointerEvents="none">
+        <Switch value={value} onValueChange={onValueChange} />
+      </View>
     </Pressable>
   );
 }
