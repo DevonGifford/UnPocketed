@@ -271,7 +271,21 @@ async function submit(
        */
       ...(options.diarize ? { speaker_labels: true } : {}),
     },
-    signal: options.signal,
+    /*
+     * The caller's `signal` is deliberately **not** passed here.
+     *
+     * §18 defines it as "stops polling; does not cancel the provider's job",
+     * and submitting is not polling — it is the step that *creates* the job.
+     * Aborting it leaves the worst possible state: the audio has already been
+     * uploaded (the upload ignores the signal and cannot be stopped), and the
+     * request that would have turned those bytes into a transcript never goes
+     * out. The job is then stranded with no reference, so nothing can re-attach
+     * to it and the upload is wasted.
+     *
+     * Letting submission finish is what makes the reference exist, and the
+     * reference is the whole architecture: polling can be abandoned safely
+     * precisely because the job survives it.
+     */
   });
 
   if (!job.id) {

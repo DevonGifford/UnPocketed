@@ -15,6 +15,12 @@ import {
 import { groupTranscriptsByRecording, transcriptionStateOf } from "./state";
 import { resumeJobFor, transcribeRecording } from "./transcribe";
 
+/**
+ * Stands in for a job reference that does not exist yet, so an outstanding job
+ * without one is still distinguishable from "nothing attached".
+ */
+const NO_JOB_REF = "\u0000no-job-ref";
+
 /*
  * Transcription's screen state.
  *
@@ -97,12 +103,19 @@ export function useRecordingTranscription(
     const current = jobFor(recordingId);
     setJob(current);
 
-    if (
-      current?.state === "transcribing" &&
-      current.jobRef &&
-      attachedTo.current !== current.jobRef
-    ) {
-      attachedTo.current = current.jobRef;
+    /*
+     * A job with no reference is still a job this screen has to resolve.
+     *
+     * The guard used to require `current.jobRef`, so a job stranded without
+     * one — the app killed mid-upload, or a submission that never completed —
+     * showed "Transcribing…" for the rest of the session with nothing polling
+     * it. `resumeJobFor` already knows what to do with a reference-less job:
+     * fail it with a reason the user can act on. It just was never called.
+     */
+    const handle = current?.jobRef ?? NO_JOB_REF;
+
+    if (current?.state === "transcribing" && attachedTo.current !== handle) {
+      attachedTo.current = handle;
 
       const controller = new AbortController();
       abort.current = controller;
