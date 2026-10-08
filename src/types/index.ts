@@ -54,11 +54,50 @@ export interface TranscriptSegment {
   endMs: number;
 }
 
+/**
+ * Who produced a Transcript's current text.
+ *
+ * Not a boolean, and that is the point. An LLM correcting a mishearing and a
+ * user fixing a typo are the **same operation performed by different authors**,
+ * so one field answers for both rather than two mechanisms doing one job.
+ *
+ * `provider` means the recogniser's own output, untouched since.
+ */
+export type TranscriptSource =
+  /** Straight from the transcription Provider, unedited. */
+  | { kind: "provider" }
+  /** Edited by the user. */
+  | { kind: "user" }
+  /** Rewritten by an LLM, which is named so §20 stays answerable. */
+  | { kind: "llm"; providerId: string; modelId: string };
+
 export interface Transcript {
   id: string;
   recordingId: string;
+  /**
+   * Where this text came from **originally**.
+   *
+   * Stays accurate forever, including after an edit: it records origin, not
+   * authorship of the current words. {@link Transcript.source} answers that,
+   * and §20 needs both halves to stay answerable once text can change.
+   */
   providerId: string;
   modelId: string;
+  /**
+   * Who wrote the text that is here now.
+   *
+   * Absent on Transcripts written before this existed, which is read as
+   * `provider` — nothing could edit one at the time, so that is not a guess.
+   */
+  source?: TranscriptSource;
+  /**
+   * The Transcript this one was made by editing, when it was.
+   *
+   * Editing a derived Transcript updates it in place rather than making a
+   * third, so this is at most one link deep: once something other than the
+   * recogniser owns the text, there is no further provenance to protect.
+   */
+  derivedFrom?: string;
   /**
    * The whole transcript as plain text.
    *
