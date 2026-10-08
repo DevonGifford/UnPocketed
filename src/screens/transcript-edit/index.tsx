@@ -186,7 +186,13 @@ export function TranscriptEditScreen({ transcriptId }: { transcriptId: string })
                   ? "Transcript text"
                   : `Speaker ${turn.speaker + 1} text`
               }
-              className="min-h-[72px] rounded-md border border-border bg-card p-3 text-[16px] leading-6 text-foreground"
+              /*
+                `font-mono` explicitly: the app's typeface is set in the `Text`
+                component's base styles, and a raw TextInput inherits none of
+                it — so an editor without this renders the system font and the
+                text visibly changes shape the moment you start editing it.
+              */
+              className="min-h-[72px] rounded-md border border-border bg-card p-3 font-mono text-[16px] leading-6 text-foreground"
             />
           </View>
         ))}
