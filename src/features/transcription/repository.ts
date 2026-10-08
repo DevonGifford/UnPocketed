@@ -12,6 +12,8 @@ import {
 } from "@/db/transcripts";
 import type { Transcript, TranscriptionJob } from "@/types";
 
+import { deleteBriefsFor } from "@/features/enrichment/repository";
+
 import {
   deleteJobFile,
   deleteTranscriptFile,
@@ -219,6 +221,28 @@ export function deleteTranscript(id: string): void {
   } catch {
     // The row now points at nothing; the next reconcile drops it.
   }
+
+  /*
+   * A Brief describes a Transcript and means nothing without one, so §25's
+   * "all associated data" reaches down here.
+   *
+   * This file importing the enrichment feature is the one place the dependency
+   * runs that way, and it is deliberate: the alternative is a rule every call
+   * site has to remember, and a forgotten one leaves orphaned Briefs that the
+   * next reconcile cannot clean up — reconcile only drops rows whose *file* is
+   * gone, and the file would still be there. No cycle is created: enrichment
+   * knows nothing about transcription.
+   *
+   * Deliberately after the Transcript is gone, and deliberately swallowed: a
+   * Brief left behind is clutter, where a Transcript left behind after the user
+   * asked for it to go is a broken promise.
+   */
+  try {
+    deleteBriefsFor(id);
+  } catch {
+    // The Transcript is gone, which is what was asked for. An orphaned Brief
+    // is recoverable; failing here would not be.
+  }
 }
 
 /**
@@ -237,6 +261,13 @@ export function deleteTranscriptsFor(recordingId: string): void {
 
   for (const transcript of owned) {
     deleteTranscriptFile(transcript.id);
+    // §25's chain, one level further down: a Recording's Transcripts take
+    // their Briefs with them.
+    try {
+      deleteBriefsFor(transcript.id);
+    } catch {
+      // As above: clutter beats a broken promise.
+    }
   }
   try {
     forgetTranscripts(owned.map((t) => t.id));

@@ -3,6 +3,27 @@ import { createGemini } from "./gemini";
 import type { EnrichmentProvider } from "./types";
 
 /*
+ * ⚠ NOTHING IN THIS FOLDER HAS EVER RUN AGAINST A REAL API.
+ *
+ * Every request shape here was verified against the providers' own published
+ * documentation on 2026-10-08 and against nothing else. No key has been
+ * configured, so no enrichment has been sent, received, parsed or billed.
+ *
+ * This is the exact position PR7's transcription code was in before its first
+ * live run — and that run found four defects a clean build had not: an
+ * abortable submission that stranded jobs, a spinner that never appeared, a
+ * hardcoded screen label, and a fabricated speaker. Treat the first real
+ * enrichment as a test, not a demo.
+ *
+ * The parts most likely to be wrong, because documentation is thinnest there:
+ * Gemini's `/v1beta/interactions` shape is newer than its `generateContent`
+ * one and its auth header was documented in only one of the two pages checked;
+ * whether Google's schema subset accepts the Brief schema at all is unproven;
+ * and neither provider's refusal or rate-limit path has been seen.
+ *
+ * Delete this notice once a Brief has been produced by both providers on a
+ * device, and record what it cost to find out.
+ *
  * The enrichment provider registry (§3.3).
  *
  * Mirrors `providers/transcription/index.ts` without sharing anything with it.

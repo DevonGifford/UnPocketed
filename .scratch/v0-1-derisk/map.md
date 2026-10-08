@@ -29,7 +29,12 @@ Reaching the destination does **not** mean v0.1 is built. §39's "Definition of 
 
 **Every ticket is resolved.** [What is an edited transcript?](issues/03-what-is-an-edited-transcript.md) closed on 2026-10-08, before PR9 started, which is where it wanted taking. **This map's destination is reached**: every decision the spec defers or leaves implicit is now resolved. What remains is building.
 
-One new research question was opened by closing it, and is deliberately *not* a map ticket: **which LLM providers ship first for enrichment**. It is the same shape as [ticket 04](issues/04-which-provider-ships-first.md) was for transcription, and it belongs to the enrichment PR rather than to this map — the architecture no longer depends on the answer.
+**PR 9.5's provider and storage layers are written and entirely unexercised (2026-10-08).** The Anthropic and Gemini adapters, the shared Brief prompt and schema, the `Brief` entity, migration 6 and the Brief repository all exist and pass 213 tests — and **no enrichment request has ever been sent.** Every wire shape was verified against published documentation and against nothing else.
+
+This is precisely where PR7 stood before its first live run, which then found four defects a clean build had missed. The same caution applies: **the first Brief is a test, not a demo.** The thinnest documentation, and so the likeliest failures, are Gemini's newer `/v1beta/interactions` shape (its auth header appeared in only one of the two pages checked), whether Google's OpenAPI-derived schema subset accepts the Brief schema at all, and both providers' refusal and rate-limit paths — none of which has been seen. A Gemini **free** key makes exercising all of it cost nothing, which is half the reason it ships. A standing notice at the top of `src/providers/enrichment/index.ts` says the same thing to anyone who opens the code, and names what to delete once it is no longer true.
+
+
+The one research question closing it opened — **which LLM providers ship first for enrichment** — was answered the same day; see *Decisions so far*.
 
 **PR1–PR7 are built and merged** (PR7 on 2026-10-08). **PR8 is complete** (2026-10-08); its device results and deferred stress cases are recorded below.
 

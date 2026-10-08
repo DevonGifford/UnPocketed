@@ -412,10 +412,27 @@ interface Brief {
   overview?: string;
   conclusion?: string;
 
+  /**
+   * A name for a speaker, keyed by the index the **recogniser** assigned.
+   * The LLM may name a voice diarization already separated; it must never
+   * decide who spoke which words.
+   */
+  speakerNames?: Record<number, string>;
+
   createdAt: string;
   updatedAt: string;
 }
 ```
+
+A Brief's identity is derived from its transcript **and the model that wrote
+it**. Re-running one model replaces that model's Brief; running a different one
+produces a second alongside it. So regenerating and comparing are the same
+gesture with different inputs, and §22's comparison works one layer down
+without a second mechanism.
+
+Deleting a Transcript deletes its Briefs. That is the only cascade in the
+enrichment layer, and it runs from an explicit deletion only — never from an
+index repair, for the reason §10's no-`ON DELETE CASCADE` rule already gives.
 
 `source` is not a boolean. An LLM correcting a mishearing and a user fixing a typo are the
 same operation performed by different authors, so one field answers for both and §20 stays

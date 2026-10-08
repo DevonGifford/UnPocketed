@@ -55,7 +55,11 @@ A Transcript produced by changing another one's text rather than by transcribing
 _Avoid_: version, revision, copy, fork, child
 
 **Brief**:
-The structured reading of a Transcript an LLM produces: title, sub-headline, executive summary, overview and conclusion. Owned by a Transcript, attributed to its own Provider and Model, and never a replacement for the Transcript it describes. Every field is optional — an absent conclusion means the model produced none, and the interface shows nothing rather than a heading over filler.
+The structured reading of a Transcript an LLM produces: title, sub-headline, executive summary, overview and conclusion, and optionally a name for each Speaker. Owned by a Transcript, attributed to its own Provider and Model, and never a replacement for the Transcript it describes. Every field is optional — an absent conclusion means the model produced none, and the interface shows nothing rather than a heading over filler.
+
+Identified by its Transcript **and** the Model that wrote it, so re-running one model replaces its Brief while running another adds one beside it. Regenerating and comparing are therefore the same action with different inputs.
+
+Unlike a Transcript, a Brief is **regenerable** — its input is text already on the device, so losing one costs a request rather than another upload. That is why Enrichment is on demand, why a poor Brief is re-rolled rather than edited, and why none of it had to ship before the Transcript work.
 _Avoid_: summary (that is one field inside it), analysis, insights, notes, AI summary
 
 **Enrichment**:
