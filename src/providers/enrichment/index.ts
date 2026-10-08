@@ -3,26 +3,28 @@ import { createGemini } from "./gemini";
 import type { EnrichmentProvider } from "./types";
 
 /*
- * ⚠ NOTHING IN THIS FOLDER HAS EVER RUN AGAINST A REAL API.
+ * ⚠ HALF OF THIS FOLDER HAS NEVER RUN AGAINST A REAL API.
  *
- * Every request shape here was verified against the providers' own published
- * documentation on 2026-10-08 and against nothing else. No key has been
- * configured, so no enrichment has been sent, received, parsed or billed.
+ * **Gemini is exercised.** It has produced real Briefs from real transcripts on
+ * a device, across three models, and the live runs corrected four things this
+ * code was wrong about — all of them judgement rather than API reading. See the
+ * research file's "Corrected by the first live runs" for the list.
  *
- * This is the exact position PR7's transcription code was in before its first
- * live run — and that run found four defects a clean build had not: an
- * abortable submission that stranded jobs, a spinner that never appeared, a
- * hardcoded screen label, and a fabricated speaker. Treat the first real
- * enrichment as a test, not a demo.
+ * **Anthropic has never been called.** No key has been configured, so every
+ * request shape in `anthropic.ts` was verified against Anthropic's published
+ * documentation and against nothing else. It is a real implementation rather
+ * than a stub, but it is unproven, and PR 9.5 shipped knowing that — a second
+ * provider was needed to keep the abstraction honest, not to be relied on.
  *
- * The parts most likely to be wrong, because documentation is thinnest there:
- * Gemini's `/v1beta/interactions` shape is newer than its `generateContent`
- * one and its auth header was documented in only one of the two pages checked;
- * whether Google's schema subset accepts the Brief schema at all is unproven;
- * and neither provider's refusal or rate-limit path has been seen.
+ * What the Gemini runs suggest is likeliest to bite when Anthropic is first
+ * used, because these are where the two differ rather than where they agree:
+ * `output_config.format` with a `json_schema` (Gemini takes `response_format`
+ * and a stripped schema); the content-block list, where the answer is not the
+ * first block; and the `refusal` stop reason, which arrives as HTTP 200 and is
+ * handled but never seen. The cleanup path in that file is doubly unproven —
+ * unexercised provider, unexercised capability.
  *
- * Delete this notice once a Brief has been produced by both providers on a
- * device, and record what it cost to find out.
+ * Delete this notice when both halves have run, and record what it cost.
  *
  * The enrichment provider registry (§3.3).
  *

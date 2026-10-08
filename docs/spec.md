@@ -1460,7 +1460,7 @@ log, the decision map and this document.
 Deliver:
 
 - an enrichment provider abstraction, separate from the transcription one;
-- Anthropic first, Gemini second; an OpenAI-compatible endpoint third, which may slip;
+- Anthropic first, Gemini second; an OpenAI-compatible endpoint third, which **slipped**;
 - Briefs: title, sub-headline, summary, overview, conclusion;
 - LLM cleanup, producing a derived transcript rather than overwriting one;
 - Brief display on the transcript screen;
@@ -1470,6 +1470,12 @@ Exit condition:
 
 > The same transcript can be enriched by two different LLM providers, both Briefs kept, and
 > the original transcript is byte-for-byte unchanged by either.
+
+**Met in part.** Both providers are built and the second exists precisely to keep the
+abstraction honest — but only Gemini was run, by deliberate choice, with Anthropic left for
+private testing. The half of the exit condition that was exercised held: Briefs from three
+Gemini models coexist on one transcript and none of them altered it. The half that was not is
+recorded rather than implied, in the registry's own header.
 
 Three constraints this PR must not break. Enrichment is **on demand**: it spends the user's
 own money and its result is regenerable at any time, so nothing runs unasked. The recogniser's

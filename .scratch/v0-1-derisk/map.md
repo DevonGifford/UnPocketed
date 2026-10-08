@@ -29,9 +29,25 @@ Reaching the destination does **not** mean v0.1 is built. §39's "Definition of 
 
 **Every ticket is resolved.** [What is an edited transcript?](issues/03-what-is-an-edited-transcript.md) closed on 2026-10-08, before PR9 started, which is where it wanted taking. **This map's destination is reached**: every decision the spec defers or leaves implicit is now resolved. What remains is building.
 
-**PR 9.5's provider and storage layers are written and entirely unexercised (2026-10-08).** The Anthropic and Gemini adapters, the shared Brief prompt and schema, the `Brief` entity, migration 6 and the Brief repository all exist and pass 213 tests — and **no enrichment request has ever been sent.** Every wire shape was verified against published documentation and against nothing else.
+**PR 9.5 is built (2026-10-08), and half of it has run.** The enrichment abstraction, both adapters, the Brief entity and its migration, the orchestration, Settings, the Enrich and Correct-wording controls, and Briefs in the Markdown and JSON exports.
 
-This is precisely where PR7 stood before its first live run, which then found four defects a clean build had missed. The same caution applies: **the first Brief is a test, not a demo.** The thinnest documentation, and so the likeliest failures, are Gemini's newer `/v1beta/interactions` shape (its auth header appeared in only one of the two pages checked), whether Google's OpenAPI-derived schema subset accepts the Brief schema at all, and both providers' refusal and rate-limit paths — none of which has been seen. A Gemini **free** key makes exercising all of it cost nothing, which is half the reason it ships. A standing notice at the top of `src/providers/enrichment/index.ts` says the same thing to anyone who opens the code, and names what to delete once it is no longer true.
+**Gemini is exercised; Anthropic is not.** Gemini produced real Briefs from real transcripts across three models. No Anthropic key was configured — deliberately, by Devon's call, with private testing to follow — so `anthropic.ts` is a real implementation verified against published documentation and nothing else. The standing notice at the top of `src/providers/enrichment/index.ts` says so, and names what is likeliest to bite when it is first used.
+
+**Four things the live runs corrected, none of them found by 261 passing tests, and all of them judgement rather than API reading:**
+
+1. **The prompt gave blanket permission to omit.** §3.7's "no AI theatre" was turned into "omit any field you cannot produce", and the first real Brief came back with a title and nothing else — honest and useless. The rule now has a floor: a transcript with words can always be titled and summarised, and only a conclusion and a speaker's name are genuinely contingent.
+2. **A `503` was reported as a fault.** Gemini's free tier returns it constantly on the newest model, because that model is both the default and where everyone else is. Reported as "no brief came back, a different model may answer differently", it sent the user tuning models when the fix was to wait.
+3. **The model list came from a pricing page**, which lists what a vendor bills for rather than what an account may use. `gemini-2.5-flash` is still published, still billed, and answers `404` — "no longer available to new users".
+4. **Briefs wrote "Speaker 2" in their own prose.** Half named, half labelled, and meaningless away from the transcript the number came from.
+
+**Two decisions the runs forced:**
+
+- **Retry a busy model once, not twice.** Added as three attempts, cut to two after Devon pushed back and the session's own evidence backed him: the same model answered `503` over several minutes, so more attempts would only have delayed the failure while burning a free tier's requests-per-minute allowance toward the `429` that is never retried.
+- **Gemini defaults to a Lite model**, inverting the rule used for Anthropic. There the price spread is negligible so the default is the best model; here the binding constraint is **availability**, and a model the user cannot reach has no quality at all. Lite is also tuned for extraction, which is what writing a Brief is.
+
+**The free tier is worse than the research said.** Google's pricing page says content is "used to improve our products"; their developer guidance adds that unpaid requests may be read by **human reviewers** and tells developers not to send private data on that tier. The disclosure carries the stronger claim now, in the picker as well as in Settings — and still cannot say which tier applies, because that follows the Google Cloud project's billing status rather than the key.
+
+**One PR9 bug surfaced that had been unreachable:** transcript chips showed `modelId`, which records *origin*, so a corrected copy carried the same one as its parent and the two read identically. Nothing could trigger it until a model could produce a derived Transcript.
 
 
 The one research question closing it opened — **which LLM providers ship first for enrichment** — was answered the same day; see *Decisions so far*.
