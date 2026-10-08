@@ -1,77 +1,27 @@
-import {
-  deleteItemAsync,
-  getItemAsync,
-  setItemAsync,
-} from "expo-secure-store";
+import { maskKey, readKey, writeKey } from "@/lib/api-keys";
 
 /*
- * The user's provider API key (§19, §26).
+ * The user's transcription provider API key (§19, §26).
  *
- * §26 lists "provider API keys stored securely" as a core privacy property, and
- * §19 says credentials go in secure device storage — so the key never touches
- * SQLite or a sidecar, both of which are plain files inside the app's sandbox.
- * `expo-secure-store` puts it behind the Android Keystore instead.
- *
- * PR8 owns provider *settings* — choosing a provider, choosing a model,
- * switching between them. Only the key itself is here, because PR7 cannot
- * transcribe anything without one and the alternative is storing it somewhere
- * §26 forbids.
+ * A thin namespace over `lib/api-keys`, which holds the keystore reasoning and
+ * is shared with enrichment. Kept as its own module so callers say what kind of
+ * key they mean rather than passing a namespace string around — and so a
+ * transcription key can never be read as an enrichment one by a typo.
  */
 
-/** Scoped by provider so PR8's second provider needs no migration. */
-function keyFor(providerId: string): string {
-  return `transcription.apiKey.${providerId}`;
-}
-
-/**
- * Reads the stored key for a provider.
- *
- * @returns The key, or null when none is stored or the keystore cannot be read
- * — the caller treats both as "not configured" rather than as an error, since
- * there is nothing the user can do differently about a keystore failure.
- */
-export async function readApiKey(providerId: string): Promise<string | null> {
-  try {
-    const stored = await getItemAsync(keyFor(providerId));
-    const trimmed = stored?.trim();
-    return trimmed ? trimmed : null;
-  } catch {
-    return null;
-  }
+/** Reads the stored key for a transcription provider. @throws Never. */
+export function readApiKey(providerId: string): Promise<string | null> {
+  return readKey("transcription", providerId);
 }
 
 /**
  * Stores a key, or clears it when given an empty string.
  *
- * @throws If the keystore rejects the write, so Settings can say the key was
- * not saved rather than letting the user believe it was.
+ * @throws If the keystore rejects the write.
  */
-export async function writeApiKey(
-  providerId: string,
-  apiKey: string,
-): Promise<void> {
-  const trimmed = apiKey.trim();
-
-  if (!trimmed) {
-    await deleteItemAsync(keyFor(providerId));
-    return;
-  }
-
-  // No `keychainAccessible`: it is an iOS option, and §6 makes iOS a non-goal.
-  await setItemAsync(keyFor(providerId), trimmed);
+export function writeApiKey(providerId: string, apiKey: string): Promise<void> {
+  return writeKey("transcription", providerId, apiKey);
 }
 
-/**
- * A masked form for display (§19 shows `••••`). Never returns the key itself —
- * Settings has no reason to render it, and a key on screen is a key in a
- * screenshot.
- *
- * @returns Dots plus the last four characters, or null when nothing is stored.
- */
-export function maskApiKey(apiKey: string | null): string | null {
-  if (!apiKey) return null;
-  // TODO(PR7 review): Keys of four characters or fewer currently show in full.
-  // Mask those too; Settings should never reveal the entire saved key.
-  const tail = apiKey.slice(-4);
-  return `${"•".repeat(Math.min(apiKey.length - tail.length, 20))}${tail}`;
-}
+/** A masked form for display. Never returns the key itself (§19). */
+export const maskApiKey = maskKey;
