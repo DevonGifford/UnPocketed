@@ -1,6 +1,6 @@
 # Android development setup
 
-How to get a local Android toolchain working so you can build and run Unpocketed on a real device.
+How to get a local Android toolchain working so you can build and run Unpocketed — on an emulator, or on a real device.
 
 This is the **local** path. Unpocketed deliberately avoids depending on a cloud build service — §3.1 of the [spec](spec.md) makes local-first a product principle, and it would be odd for the build to need someone else's servers when the app does not. EAS Build remains a valid fallback if you cannot install a toolchain, but nothing here requires it.
 
@@ -17,7 +17,7 @@ You will not write a line of Java or Kotlin. Expo's managed workflow is TypeScri
 | **Android SDK Build-Tools** | | Turns compiled code into an APK. |
 | **Platform-Tools** | | Provides `adb`, which talks to the device. |
 | **udev rules** | tiny | Linux only. Without them your phone shows up but `adb` cannot claim it. |
-| **A physical Android device** | | §7 of the spec: development is tested on real hardware. Recording quality, background behaviour and microphone permissions all differ on an emulator. |
+| **Somewhere to run it** | | An emulator or a physical handset. §7 of the spec wants development tested on real hardware — recording quality, background behaviour and microphone permissions all differ on an emulator — but either will build. |
 
 Disk: budget roughly **4–6 GB** for the SDK once platforms and build-tools are installed.
 
@@ -25,7 +25,7 @@ Disk: budget roughly **4–6 GB** for the SDK once platforms and build-tools are
 
 ## 1. Install the JDK and udev rules
 
-Needs root. On Arch / Omarchy:
+Needs root. The JDK is needed either way; the udev rules only matter for a physical handset, so skip them if you are only ever running an emulator. On Arch / Omarchy:
 
 ```bash
 sudo pacman -S --needed jdk17-openjdk android-udev
@@ -90,9 +90,12 @@ Add to `~/.bashrc` (or your shell's equivalent):
 export ANDROID_HOME="$HOME/Android/Sdk"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
+export ANDROID_AVD_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/.android/avd"
 ```
 
-Then `source ~/.bashrc` or open a new terminal. Both variable names are set because tooling is inconsistent about which it reads.
+Then `source ~/.bashrc` or open a new terminal. Both `ANDROID_HOME` and `ANDROID_SDK_ROOT` are set because tooling is inconsistent about which it reads.
+
+`ANDROID_AVD_HOME` is only needed if you want an emulator, but it is cheap to set now and [Emulator setup](emulator-setup.md) explains the trap it avoids. Skip it on macOS, where the default already matches.
 
 ---
 
@@ -126,58 +129,23 @@ About **480 MB** at this point. Gradle and the native build will add several GB 
 
 ---
 
-## 5. Prepare your phone
+## 5. Pick a surface
 
-1. **Settings → About phone**, tap the OS version seven times to unlock Developer options. The label is vendor-specific: **MIUI version** on Xiaomi (the bold string, e.g. `14.0.9.0 TKFEUXM`), **Build number** on stock Android.
-2. Open Developer options — **Settings → Additional settings → Developer options** on Xiaomi/MIUI, **Settings → System → Developer options** on stock Android — and enable **both**:
-   - **USB debugging**.
-   - **Install via USB**. Xiaomi only, and the expensive one to miss: `expo run:android` finishes with `adb install`, which MIUI refuses with `INSTALL_FAILED_USER_RESTRICTED` unless this is on. The refusal arrives *after* the full 10–20 minute build, so set it before you start. It may also demand a signed-in Mi account.
-3. Set **Default USB configuration** to **File transfer**. Charge-only mode hides the ADB interface on some MIUI builds.
-4. Plug the phone in over USB. A dialog asks you to authorise the computer — accept it, and tick "always allow".
+The toolchain is now installed. What you do with it depends on what you are running the app on:
 
-On Linux, add yourself to the group the udev rules use, then log out and back in:
+- **[Emulator setup](emulator-setup.md)** — a browser for layout work, or an Android emulator for the full app, both on this machine.
+- **[Device setup](device-setup.md)** — a physical handset: phone preparation, the development build, wireless ADB and the standalone APK.
 
-```bash
-sudo usermod -aG adbusers "$USER"
-```
-
-`adbusers` is the group named in `/usr/lib/udev/rules.d/51-android.rules` (`GROUP="adbusers"`), installed by `android-udev`. If you are on a distro that ships different rules, check that file rather than assuming the group name.
-
-Those rules also carry `TAG+="uaccess"`, which makes systemd-logind grant the active local user an ACL on the device node directly. Where that applies the group membership is belt-and-braces rather than load-bearing, so `id -nG` omitting `adbusers` is not on its own an explanation for a device that will not appear — check the ACL with `getfacl /dev/bus/usb/<bus>/<dev>` before chasing it.
-
-Confirm the device is visible:
-
-```bash
-adb devices      # expect: <serial>  device
-```
-
-`unauthorized` means you have not accepted the on-device dialog.
-
-An **empty list** has two unrelated causes, and the USB descriptors tell them apart before you start changing anything:
-
-```bash
-lsusb                                   # find the phone's <vid>:<pid>
-lsusb -d <vid>:<pid> -v | grep -E "bNumInterfaces|bInterfaceClass"
-```
-
-With USB debugging off the phone exposes a single interface, class 6 (Imaging — MTP/PTP). With it on, a **second interface appears at class ff, subclass 42, protocol 1**: that is ADB. If that interface is absent the fault is on the phone and no amount of udev or group work will fix it — go back to step 2. Only once it is present do the host-side causes (udev rules, group membership, a full logout) become worth investigating.
-
----
-
-## 6. Build and run
-
-From the repo root:
+Either way the first build is the same command and the same wait:
 
 ```bash
 pnpm install
 pnpm expo run:android
 ```
 
-The first build downloads Gradle and compiles native code — expect **10–20 minutes**. Later builds are far quicker.
+The first run takes **10–20 minutes** — it generates `android/`, downloads Gradle and the NDK, and compiles native code. Later builds are far quicker, and you only need this one again when a native dependency or `app.json` plugin config changes.
 
-This produces a **development build**, not Expo Go. Unpocketed needs native modules for audio recording, secure storage and foreground services, so Expo Go is not sufficient once real recording lands (§7).
-
-That is the one-time install finished. For the day-to-day loop — running against Metro without rebuilding, testing the interface in a browser, or working untethered over wireless ADB — see **[Running locally](running-locally.md)**.
+This produces a **development build**, not Expo Go. Unpocketed needs native modules for audio recording, secure storage and foreground services, so Expo Go is not sufficient (§7).
 
 ---
 
@@ -189,7 +157,7 @@ That is the one-time install finished. For the day-to-day loop — running again
 
 **`Failed to install the following Android SDK packages as some licences have not been accepted`** — run `sdkmanager --licenses`.
 
-**`adb: no devices/emulators found`** — check the USB interface list (§5) before suspecting the host. Then, in order: is USB debugging on, is **Install via USB** on if this is a Xiaomi, was the authorisation dialog accepted, is the cable a data cable rather than charge-only, and have you logged out since the `usermod`?
+**A device or emulator that will not connect** — see the troubleshooting section of [Device setup](device-setup.md#troubleshooting) or [Emulator setup](emulator-setup.md#troubleshooting); both are surface-specific rather than toolchain faults.
 
 **Gradle runs out of memory** — add `org.gradle.jvmargs=-Xmx4g` to `android/gradle.properties`. That file only exists after a prebuild.
 

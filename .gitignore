@@ -42,8 +42,7 @@ yarn-error.*
 pnpm-debug.*
 
 # Editors
-.vscode/*
-!.vscode/extensions.json
+.vscode/
 .idea/
 *.swp
 

@@ -10,7 +10,11 @@
         "./assets/*"
       ]
     },
+    // "expo/types" is what declares `*.css`, so `import "./global.css"` needs it.
+    // Normally it arrives via expo-env.d.ts, which is generated and gitignored --
+    // so it is absent on any fresh checkout and typecheck fails there alone.
     "types": [
+      "expo/types",
       "jest",
       "node"
     ]
