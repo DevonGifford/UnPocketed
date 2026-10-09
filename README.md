@@ -43,34 +43,54 @@ Original audio is never destructively modified, so transcripts and AI-generated 
 ### Application Flow
 ---
 
-Unpocketed has two ways in — record on the device, or import audio captured elsewhere — and both produce the same kind of Recording. From there, transcription is an explicit, user-triggered step that leaves the device only when asked.
+Unpocketed has two ways in — record on the device, or import audio captured elsewhere — and both produce the same kind of Recording. From there, transcription and enrichment are explicit, user-triggered steps, and the only points at which anything leaves the device.
 
-```text
-┌──────────────────────┐                  ┌──────────────────────┐
-│   Record on device   │                  │    Import a file     │
-│  mic · background    │                  │  M4A · MP3 · WAV     │
-└──────────┬───────────┘                  └──────────┬───────────┘
-           │                                         │
-           └───────────────┐         ┌───────────────┘
-                           ▼         ▼
-                    ┌──────────────────────┐
-                    │  Expo / React Native │
-                    │      Unpocketed      │
-                    └──────────┬───────────┘
-                               │
-                 ┌─────────────┴─────────────┐
-                 ▼                           ▼
-      ┌──────────────────────┐    ┌──────────────────────┐
-      │  On-device storage   │    │ Your transcription   │
-      │ files · SQLite · keys│    │ provider · your key  │
-      └──────────────────────┘    └──────────────────────┘
-             always                    only when you ask
+```
+        ┌──────────────────────┐          ┌──────────────────────┐
+        │   Record on device   │          │     Import audio     │
+        │   mic · background   │          │  captured elsewhere  │
+        └───────────┬──────────┘          └───────────┬──────────┘
+                    │                                 │
+                    └───────────────┐ ┌───────────────┘
+                                    ▼ ▼
+                        ┌─────────────────────────┐
+                        │        Recording        │
+                        │   the original audio,   │
+                        │     never rewritten     │
+                        └────────────┬────────────┘
+                                     │
+          Transcribe · you pick the Provider and Model, pay them
+                directly, and the audio leaves the device
+                                     │
+                                     ▼
+                        ┌─────────────────────────┐
+                        │        Transcript       │
+                        │    zero or more, each   │
+                        │  attributed, coexisting │
+                        └────────────┬────────────┘
+                                     │
+           ┌─────────────────────────┼─────────────────────────┐
+           ▼                         ▼                         ▼
+   ┌───────────────┐         ┌───────────────┐         ┌───────────────┐
+   │      Edit     │         │   Enrichment  │         │     Export    │
+   │    by hand,   │         │   on demand,  │         │  audio · txt  │
+   │    any time   │         │ not automatic │         │   md · json   │
+   └───────────────┘         └───────┬───────┘         └───────────────┘
+                                     │
+                        ┌────────────┴────────────┐
+                        ▼                         ▼
+                ┌───────────────┐         ┌───────────────┐
+                │   Correction  │         │     Brief     │
+                │   a Derived   │         │  a new entity │
+                │   Transcript  │         │   beside it   │
+                └───────────────┘         └───────────────┘
 ```
 
-There is deliberately no `phone → Unpocketed API → provider` hop. That keeps this project out of the path of your recordings, your credentials, your billing and your transcripts.
+> An Edit and a Correction are the same operation by different hands — each makes a **Derived Transcript**, and neither replaces what it came from. A **Brief** is a different kind of thing: it sits beside a Transcript, and because its input is text already on the device, a poor one is re-rolled rather than edited. Two steps leave the device: the Transcribe arrow marked above, and Enrichment. Each goes to a provider you picked, under your own API key.
 
 <br/>
 <br/>
+
 <!-- -------------------------------------------------------------------------- -->
 
 ### Running Locally
@@ -90,12 +110,12 @@ Unpocketed can be run in two ways during development:
 
 Both start from the same one-time toolchain install — JDK, Android SDK and environment variables: [**Android development setup**](docs/android-setup.md). A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services; the browser renders the interface but implements none of them.
 
-Then **configure transcription**: open **Settings** in the app and add your own provider API key. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
+Then **configure a provider**: open **Settings** in the app and add your own API key — one for transcription, and a separate one for enrichment if you want Briefs. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
 
 #### Notes
 
-- Transcription is the only feature that requires a network connection. Recording, playback, import, rename, delete, export and reading existing transcripts all work offline.
-- Cloud transcription sends that recording to the external provider you selected, under their pricing and privacy terms.
+- Transcription and enrichment are the only features that require a network connection. Recording, playback, import, rename, delete, export, editing and reading existing transcripts all work offline.
+- Transcription sends that recording to the provider you selected; enrichment sends a transcript's text to the one you selected for it. Both are under that provider's own pricing and privacy terms.
 - If you hit a problem, check the [Issues](https://github.com/DevonGifford/UnPocketed/issues) page for an existing report, or open a new one.
 
 <br/>
