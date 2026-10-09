@@ -90,9 +90,12 @@ Add to `~/.bashrc` (or your shell's equivalent):
 export ANDROID_HOME="$HOME/Android/Sdk"
 export ANDROID_SDK_ROOT="$ANDROID_HOME"
 export PATH="$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator"
+export ANDROID_AVD_HOME="${XDG_CONFIG_HOME:-$HOME/.config}/.android/avd"
 ```
 
-Then `source ~/.bashrc` or open a new terminal. Both variable names are set because tooling is inconsistent about which it reads.
+Then `source ~/.bashrc` or open a new terminal. Both `ANDROID_HOME` and `ANDROID_SDK_ROOT` are set because tooling is inconsistent about which it reads.
+
+`ANDROID_AVD_HOME` is only needed if you want an emulator, but it is cheap to set now and *Run on an emulator* below explains what it fixes. Skip it on macOS, where the default already matches.
 
 ---
 
@@ -181,6 +184,40 @@ That is the one-time install finished. For the day-to-day loop — running again
 
 ---
 
+## 7. Run on an emulator (optional)
+
+A real device stays the thing releases are judged on — §7 of the spec, and the reasons in *What you need* have not changed. But an emulator earns its place for one specific reason: **`adb shell input` works on it.** MIUI refuses injected input, so any flow that needs a tap — the document picker in import, for one — cannot be driven from a script on the test phone. On an emulator it can.
+
+Create an AVD through Android Studio's device manager (`yay -S android-studio` on Arch; the Standard setup wizard is fine). A Google Play x86_64 image is the right default — a Play image keeps `adb root` out of reach, but `run-as` still works for a debuggable build, which is all the device recipes here need.
+
+Check that KVM is usable before expecting tolerable speed:
+
+```bash
+emulator -accel-check    # "KVM ... is installed and usable"
+```
+
+Then boot one and run the app against it:
+
+```bash
+emulator -list-avds
+emulator @<a-name-from-that-list> &
+pnpm expo run:android
+```
+
+**The AVD visibility trap.** Android Studio and `avdmanager` honour `XDG_CONFIG_HOME` and write AVDs to `~/.config/.android/avd`; the `emulator` binary ignores it and looks in `~/.android/avd`. Without `ANDROID_AVD_HOME` from §3, then, a device Studio created and lists quite happily does not exist as far as the command line is concerned:
+
+```
+$ emulator @Pixel_10
+ERROR | Unknown AVD name [Pixel_10], use -list-avds to see valid list.
+ERROR | HOME is defined but there is no file Pixel_10.ini in $HOME/.android/avd
+```
+
+`emulator -list-avds` is empty for the same reason, and that is the call Expo shells out to (`listAvdsAsync` in `@expo/cli`) when it needs to *start* a device. So `pnpm expo run:android` with nothing already booted fails with **"No Android connected device found, and no emulators could be started automatically"**. Boot the emulator from Android Studio first and `adb` reports it like any other device, so Expo finds it and the whole problem hides — which is what makes this worth writing down. `ANDROID_USER_HOME` is not a substitute; only `ANDROID_AVD_HOME`, pointing at the `avd` directory itself, works.
+
+**What an emulator still cannot settle.** Host audio stands in for the microphone, so recording *paths* can be exercised but encoding quality cannot — the 128 kbps request that the test phone negotiated down to roughly 96 kbps is a question for real hardware. Background behaviour and the manufacturer's own power management are likewise only honest on the device.
+
+---
+
 ## Troubleshooting
 
 **`sdkmanager: command not found`** — `PATH` is not picking up `cmdline-tools/latest/bin`, or the tools are not in the `latest/` subdirectory. Check `ls ~/Android/Sdk/cmdline-tools/latest/bin`.
@@ -190,6 +227,8 @@ That is the one-time install finished. For the day-to-day loop — running again
 **`Failed to install the following Android SDK packages as some licences have not been accepted`** — run `sdkmanager --licenses`.
 
 **`adb: no devices/emulators found`** — check the USB interface list (§5) before suspecting the host. Then, in order: is USB debugging on, is **Install via USB** on if this is a Xiaomi, was the authorisation dialog accepted, is the cable a data cable rather than charge-only, and have you logged out since the `usermod`?
+
+**`No Android connected device found, and no emulators could be started automatically`, with an AVD that Android Studio can see** — `emulator -list-avds` is looking in the wrong directory. See the AVD visibility trap under *Run on an emulator*.
 
 **Gradle runs out of memory** — add `org.gradle.jvmargs=-Xmx4g` to `android/gradle.properties`. That file only exists after a prebuild.
 
