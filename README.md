@@ -130,20 +130,19 @@ v0.1 ships as ten sequential pieces of work. Full detail is in [§38 of the spec
 ### Running Locally
 ----
 
-Unpocketed runs three ways while in development: as a development build on a physical Android device, on an emulator, or in a browser for interface work — and untethered over wireless ADB once the cable starts to grate.
+Unpocketed can be run in two ways during development:
 
-- **[Android development setup](docs/android-setup.md)** — the one-time toolchain install: JDK, Android SDK, udev rules and phone preparation.
-- **[Running locally](docs/running-locally.md)** — the recurring loop: phone, emulator, browser, and getting rid of the USB cable.
+- **On your computer**
+  - **Browser** — quickest for UI and layout work
+  - **Android Emulator** — runs the full Android app locally
+  - See [**Emulator Setup**](docs/emulator-setup.md)
 
-The short version, once the toolchain is in place:
+- **On a physical Android device**
+  - **Development build** — runs against the local Expo development server
+  - **Standalone APK** — runs without the development server *(coming later)*
+  - See [**Device Setup**](docs/device-setup.md)
 
-```bash
-pnpm install
-pnpm expo run:android      # development build, on a connected device
-pnpm expo start --web      # interface only, in a browser (see note below)
-```
-
-A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services. Browser mode renders the interface but implements none of them — [Running locally](docs/running-locally.md) sets out where that line falls, and why an emulator is the quicker surface for anything behavioural.
+Both start from the same one-time toolchain install — JDK, Android SDK and environment variables: [**Android development setup**](docs/android-setup.md). A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services; the browser renders the interface but implements none of them.
 
 Then **configure transcription**: open **Settings** in the app and add your own provider API key. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
 
@@ -157,25 +156,13 @@ Then **configure transcription**: open **Settings** in the app and add your own 
 <br/>
 <!-- -------------------------------------------------------------------------- -->
 
-### Privacy
-----
-Recordings and transcripts are stored on your device. Nothing is uploaded unless you explicitly request a cloud transcription, and when you do it goes to the provider you picked — not through any infrastructure of ours, because there isn't any.
+### Privacy & Responsible Recording
 
-There are no Unpocketed accounts, no cloud storage, and no analytics of any kind. Should telemetry ever be introduced, it will exclude recording and transcript content entirely and is intended to be opt-in.
+Recordings and transcripts stay on your device unless you explicitly send them to a transcription or AI provider you choose. Unpocketed has no accounts, no cloud storage, and no analytics. Android device backup is left enabled, so recordings may also be included in your own Google Drive backup. See [**PRIVACY.md**](PRIVACY.md) for provider-specific details.
 
-One case deserves naming rather than leaving to the small print: Android's own backup service is left enabled, so your recordings are part of your device backup to **your** Google Drive. That is what lets a library survive a new phone, and it is the one time audio leaves without you approving that recording individually. [**PRIVACY.md**](PRIVACY.md) covers it, and what each transcription and AI provider does with what you send them.
+Recording laws vary by location and situation, and Unpocketed does not decide whether a recording is lawful. **You are responsible for making sure you have permission, or another lawful basis, before recording a conversation.**
 
-<br/>
-<br/>
-<!-- -------------------------------------------------------------------------- -->
-
-### Recording Responsibly
-----
-Unpocketed is a recording tool, and recording law varies considerably by jurisdiction and circumstance. The application does not attempt to judge whether any particular recording is lawful.
-
-**You are responsible for ensuring you have appropriate permission, or another lawful basis, before recording a conversation.**
-
-Unpocketed will not ship features designed to conceal that recording is taking place. Android displays a microphone indicator whenever an app is recording, and that is working as intended.
+Unpocketed will not include features designed to hide that recording is taking place, and Android's microphone indicator remains visible while recording.
 
 <br/>
 <br/>
@@ -190,7 +177,8 @@ Unpocketed will not ship features designed to conceal that recording is taking p
 | [Privacy](PRIVACY.md) | What stays on the device, what leaves it, and when |
 | [Domain glossary](CONTEXT.md) | The project's vocabulary, and the words to avoid |
 | [Android setup](docs/android-setup.md) | Getting a local build toolchain working |
-| [Running locally](docs/running-locally.md) | Running the app on a phone, on an emulator, in a browser, or over wireless ADB |
+| [Emulator setup](docs/emulator-setup.md) | Running the app in a browser or on an Android emulator |
+| [Device setup](docs/device-setup.md) | Running the app on a physical handset, tethered or not |
 | [Releasing](docs/releasing.md) | Producing a signed APK or AAB, and what Play asks for |
 | [Artwork](docs/artwork.md) | The icon and splash files still outstanding, and their sizes |
 | [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
