@@ -59,31 +59,28 @@ Unpocketed has two ways in — record on the device, or import audio captured el
                         │     never rewritten     │
                         └────────────┬────────────┘
                                      │
-          Transcribe · you pick the Provider and Model, pay them
-                directly, and the audio leaves the device
-                                     │
                                      ▼
                         ┌─────────────────────────┐
-                        │        Transcript       │
-                        │    zero or more, each   │
-                        │  attributed, coexisting │
+                        │   Transcription Model   │
+                        │ ----------------------- │
+                        │       BYO-API Key       │
                         └────────────┬────────────┘
                                      │
            ┌─────────────────────────┼─────────────────────────┐
            ▼                         ▼                         ▼
-   ┌───────────────┐         ┌───────────────┐         ┌───────────────┐
-   │      Edit     │         │   Enrichment  │         │     Export    │
-   │    by hand,   │         │   on demand,  │         │  audio · txt  │
-   │    any time   │         │ not automatic │         │   md · json   │
-   └───────────────┘         └───────┬───────┘         └───────────────┘
+   ┌───────────────┐      ┌─────────────────────┐       ┌───────────────┐
+   │      Edit     │      │      LLM Model      │       │     Export    │
+   │    by hand,   │      │ ------------------- │       │   in chosen   │  
+   │    any time   │      │     BYO-API Key     │       │     format    │
+   └───────────────┘      └──────────┬──────────┘       └───────────────┘
                                      │
                         ┌────────────┴────────────┐
                         ▼                         ▼
-                ┌───────────────┐         ┌───────────────┐
-                │   Correction  │         │     Brief     │
-                │   a Derived   │         │  a new entity │
-                │   Transcript  │         │   beside it   │
-                └───────────────┘         └───────────────┘
+                ┌────────────────┐         ┌──────────────────┐
+                │   Correction   │         │    Create an     │
+                │   to Derived   │         │    AI Summary    │
+                │   Transcript   │         │  of transcript   │
+                └────────────────┘         └──────────────────┘
 ```
 
 > An Edit and a Correction are the same operation by different hands — each makes a **Derived Transcript**, and neither replaces what it came from. A **Brief** is a different kind of thing: it sits beside a Transcript, and because its input is text already on the device, a poor one is re-rolled rather than edited. Two steps leave the device: the Transcribe arrow marked above, and Enrichment. Each goes to a provider you picked, under your own API key.
