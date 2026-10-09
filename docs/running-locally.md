@@ -1,6 +1,6 @@
 # Running locally
 
-Two ways to run Unpocketed while developing it, and one way to get rid of the USB cable.
+Three ways to run Unpocketed while developing it, and one way to get rid of the USB cable.
 
 New to the project? Work through **[Android development setup](android-setup.md)** first — JDK, Android SDK, udev rules and phone preparation. That is the one-time install; this document is the recurring loop.
 
@@ -35,7 +35,26 @@ Go back to `pnpm expo run:android` only when you add or change a native dependen
 
 ---
 
-## 2. In a web browser — interface only
+## 2. On an emulator — the quick loop
+
+An AVD runs the real native app: real file system, real SQLite, real `expo-audio`. It is the fastest surface that still behaves like the product, and the only one where **`adb shell input` works** — MIUI refuses injected input on the test phone, so a flow that needs a tap can only be scripted here.
+
+Creating an AVD, the KVM check and the `ANDROID_AVD_HOME` trap are one-time setup: see [section 7 of the setup guide](android-setup.md#7-run-on-an-emulator-optional). With that done the loop is the phone's loop:
+
+```bash
+emulator @<avd-name> &     # or Android Studio's device manager
+pnpm expo start            # then press `a`
+```
+
+Pressing `a` from cold works too, with a catch worth knowing. With nothing booted Expo takes the **first** AVD `emulator -list-avds` prints rather than asking, spawns `emulator @<name>` itself and waits up to three minutes for the boot animation to finish. Press **`shift+a`** to choose a device instead — lowercase `a` never prompts. Booting the one you want yourself is the simplest answer, and it keeps the device alive across Metro restarts.
+
+**What an emulator cannot settle.** Recording quality, background behaviour and microphone permissions all differ from hardware — which is precisely the territory this app lives in. The microphone is host audio, so §12's comparison against the stock recorder stays on the phone, as does anything involving the manufacturer's own power management. Drive the app on the emulator; judge it on the device (§7 of the [spec](spec.md)).
+
+Whether this makes a Maestro or Detox suite worth having for v0.1 is still open — it sits with the device-testing question in the [decision map](../.scratch/v0-1-derisk/map.md).
+
+---
+
+## 3. In a web browser — interface only
 
 > [!NOTE]
 > **Browser mode works again as of 2026-10-08**, after being broken since the
@@ -86,11 +105,11 @@ Import is the one row with a trap in it: `expo-document-picker` ships a web impl
 
 So the useful span of browser testing shrinks as the roadmap advances. Through PR2 it covers nearly everything, because nearly everything is still static. From **PR3**, when real recording lands, screens will render and every control that touches audio will fail.
 
-Treat a browser check as evidence about layout, never about behaviour. Reach for web when the question is "does this screen look right"; reach for the phone when the question is anything else.
+Treat a browser check as evidence about layout, never about behaviour. Reach for web when the question is "does this screen look right"; reach for the emulator or the phone when the question is anything else.
 
 ---
 
-## 3. Without the cable — wireless ADB
+## 4. Without the cable — wireless ADB
 
 Real device, real microphone, real foreground service, no USB lead. Worth ten minutes once the tethered loop starts to grate.
 
@@ -118,14 +137,6 @@ Either way, unplug once `adb devices` lists the phone at its IP.
 
 ---
 
-## A note on emulators
-
-Deliberately not covered. Development is tested on physical hardware (§7) because recording quality, background behaviour and microphone permissions all differ on an emulator — which is precisely the territory this app lives in. The [setup guide](android-setup.md) installs no emulator package, system image or AVD.
-
-If a screen-size or API-level matrix later makes one worth having, that belongs with the open question on device-testing tooling in the [decision map](../.scratch/v0-1-derisk/map.md), not here.
-
----
-
 ## Troubleshooting
 
 Toolchain and build failures are covered in [Android development setup](android-setup.md#troubleshooting).
@@ -134,4 +145,4 @@ Toolchain and build failures are covered in [Android development setup](android-
 
 **`Port 8081 already in use`** — another Metro instance is still alive. Stop it, or use `pnpm expo start --port 8082`.
 
-**A control does nothing in the browser** — expected, if it touches audio, storage or export. See the table in section 2.
+**A control does nothing in the browser** — expected, if it touches audio, storage or export. See the table in *In a web browser*.

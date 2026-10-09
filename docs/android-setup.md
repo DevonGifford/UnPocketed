@@ -180,7 +180,7 @@ The first build downloads Gradle and compiles native code — expect **10–20 m
 
 This produces a **development build**, not Expo Go. Unpocketed needs native modules for audio recording, secure storage and foreground services, so Expo Go is not sufficient once real recording lands (§7).
 
-That is the one-time install finished. For the day-to-day loop — running against Metro without rebuilding, testing the interface in a browser, or working untethered over wireless ADB — see **[Running locally](running-locally.md)**.
+That is the one-time install finished. For the day-to-day loop — running against Metro without rebuilding, working on an emulator, testing the interface in a browser, or going untethered over wireless ADB — see **[Running locally](running-locally.md)**.
 
 ---
 

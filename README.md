@@ -130,10 +130,10 @@ v0.1 ships as ten sequential pieces of work. Full detail is in [§38 of the spec
 ### Running Locally
 ----
 
-Unpocketed runs three ways while in development: as a development build on a physical Android device, in a browser for interface work, or on a device over wireless ADB.
+Unpocketed runs three ways while in development: as a development build on a physical Android device, on an emulator, or in a browser for interface work — and untethered over wireless ADB once the cable starts to grate.
 
 - **[Android development setup](docs/android-setup.md)** — the one-time toolchain install: JDK, Android SDK, udev rules and phone preparation.
-- **[Running locally](docs/running-locally.md)** — the recurring loop: phone, browser, and getting rid of the USB cable.
+- **[Running locally](docs/running-locally.md)** — the recurring loop: phone, emulator, browser, and getting rid of the USB cable.
 
 The short version, once the toolchain is in place:
 
@@ -143,7 +143,7 @@ pnpm expo run:android      # development build, on a connected device
 pnpm expo start --web      # interface only, in a browser (see note below)
 ```
 
-A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services. Browser mode renders the interface but implements none of them — [Running locally](docs/running-locally.md) sets out where that line falls, and notes that browser mode is **currently broken** by an upstream Uniwind bug.
+A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services. Browser mode renders the interface but implements none of them — [Running locally](docs/running-locally.md) sets out where that line falls, and why an emulator is the quicker surface for anything behavioural.
 
 Then **configure transcription**: open **Settings** in the app and add your own provider API key. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
 
@@ -190,7 +190,7 @@ Unpocketed will not ship features designed to conceal that recording is taking p
 | [Privacy](PRIVACY.md) | What stays on the device, what leaves it, and when |
 | [Domain glossary](CONTEXT.md) | The project's vocabulary, and the words to avoid |
 | [Android setup](docs/android-setup.md) | Getting a local build toolchain working |
-| [Running locally](docs/running-locally.md) | Running the app on a phone, in a browser, or over wireless ADB |
+| [Running locally](docs/running-locally.md) | Running the app on a phone, on an emulator, in a browser, or over wireless ADB |
 | [Releasing](docs/releasing.md) | Producing a signed APK or AAB, and what Play asks for |
 | [Artwork](docs/artwork.md) | The icon and splash files still outstanding, and their sizes |
 | [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
