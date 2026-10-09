@@ -1,7 +1,7 @@
 <div align="center">
   <!-- cover logo -->
   <p align='center'>
-    <img src="docs/UnPocketed-Logo.png" alt="Unpocketed" title="Unpocketed" height="250">
+    <img src="docs/images/Logo/UnPocketed-Logo-Large.png" alt="Unpocketed" title="Unpocketed" height="250">
   </p>
   <!-- sub headline -->
   <h2>

@@ -2,7 +2,7 @@
 
 The launcher icon and splash screen are still Expo's template art. This is the list of what has to replace them, at what size, and the two colour decisions that come with it.
 
-Everything here is **outstanding** — it is the one part of PR10 left open on purpose, because turning `UnPocketed-Logo.png` into a square mark is a design decision rather than a crop. The logo is a 2048×768 wordmark; at 48dp on a home screen the letters are illegible.
+Everything here is **outstanding** — it is the one part of PR10 left open on purpose, because turning `docs/images/Logo/UnPocketed-Logo-Large.png` into a square mark is a design decision rather than a crop. That lockup is a 2048×768 wordmark; at 48dp on a home screen the letters are illegible.
 
 ---
 
