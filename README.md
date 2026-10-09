@@ -108,21 +108,12 @@ Unpocketed can be run in two ways during development:
   - **Standalone APK** — runs without the development server *(coming later)*
   - See [**Device Setup**](docs/device-setup.md)
 
-Both start from the same one-time toolchain install — JDK, Android SDK and environment variables: [**Android development setup**](docs/android-setup.md). A development build is required rather than Expo Go, because Unpocketed needs native modules for audio recording, secure storage and foreground services; the browser renders the interface but implements none of them.
-
-Then **configure a provider**: open **Settings** in the app and add your own API key — one for transcription, and a separate one for enrichment if you want Briefs. Keys are held in the device keystore, never in the database or a config file, and never leave the device except as an authorisation header to the provider you chose.
-
-#### Notes
-
-- Transcription and enrichment are the only features that require a network connection. Recording, playback, import, rename, delete, export, editing and reading existing transcripts all work offline.
-- Transcription sends that recording to the provider you selected; enrichment sends a transcript's text to the one you selected for it. Both are under that provider's own pricing and privacy terms.
-- If you hit a problem, check the [Issues](https://github.com/DevonGifford/UnPocketed/issues) page for an existing report, or open a new one.
-
 <br/>
 <br/>
 <!-- -------------------------------------------------------------------------- -->
 
 ### Privacy & Responsible Recording
+----
 
 Recordings and transcripts stay on your device unless you explicitly send them to a transcription or AI provider you choose. Unpocketed has no accounts, no cloud storage, and no analytics. Android device backup is left enabled, so recordings may also be included in your own Google Drive backup. See [**PRIVACY.md**](PRIVACY.md) for provider-specific details.
 
