@@ -26,14 +26,19 @@
 
 ### Brief Introduction
 ----
-Unpocketed is an open-source Android application for recording, importing, transcribing and exporting spoken audio. <br/>
-It runs entirely on your device. There is no account, no subscription, and no Unpocketed server — recordings, transcripts and settings stay in local storage, and your API keys stay in the platform keystore. When you want a recording transcribed, you choose the provider and the model, supply your own credentials, and your phone talks to that service directly. The original audio is never destructively modified, so any transcript can be thrown away and regenerated with a better model later.
 
-> **Status: planning.** There is no application code in this repository yet — it currently holds the specification and the decision map that precede v0.1.
+Unpocketed is an open-source Android application for recording, importing, transcribing, enriching and exporting spoken audio.
+
+There is no Unpocketed account, subscription or server. Recordings, transcripts and settings stay on your device, while API keys are stored in the platform keystore. When you want something transcribed or enriched, you choose the provider and model, supply your own credentials, and the app talks to that service directly.
+
+Original audio is never destructively modified, so transcripts and AI-generated outputs can be replaced, compared or regenerated later with a different model.
+
+> **Status:** Unpocketed is under active development toward v0.1.
 
 <br/>
 <br/>
 
+<!-- -------------------------------------------------------------------------- -->
 
 ### Application Flow
 ---
@@ -63,65 +68,6 @@ Unpocketed has two ways in — record on the device, or import audio captured el
 ```
 
 There is deliberately no `phone → Unpocketed API → provider` hop. That keeps this project out of the path of your recordings, your credentials, your billing and your transcripts.
-
-<br/>
-<br/>
-<!-- -------------------------------------------------------------------------- -->
-
-### Four Promises
-----
-v0.1 is finished when these four can be made confidently — and not before.
-
-| | |
-|---|---|
-| **Record well** | Good-quality recordings from hardware you already own, benchmarked against your phone's stock recorder. |
-| **Keep the original** | Transcription never rewrites the source audio. A transcript can be regenerated; a lost recording cannot. |
-| **Transcribe however you want** | Transcription sits behind a provider adapter — Groq, OpenAI, Deepgram, a self-hosted endpoint, or something that doesn't exist yet. |
-| **Get your data back out** | Audio, TXT, Markdown and JSON export. No account, no paywall, no proprietary conversion step. |
-
-<br/>
-<br/>
-<!-- -------------------------------------------------------------------------- -->
-
-### Why This Exists
-----
-A growing category of AI recording products pairs dedicated hardware with a proprietary transcription service. That bundle tends to arrive with constraints that have nothing to do with recording audio: you use the manufacturer's transcription model, better models stay out of reach, useful features sit behind a subscription, and your recordings accumulate inside someone else's ecosystem.
-
-Meanwhile the phone already in your pocket has a capable microphone, ample storage and a connection — and speech-to-text models have become largely interchangeable commodities.
-
-So the useful product isn't the hardware or the model. It's the thin, honest layer between them, one that doesn't insist on owning the relationship.
-
-A recording is a file. A transcript is text. A model turns one into the other. You own all three decisions: **what to record, where to keep it, and which model gets to listen.**
-
-<br/>
-<br/>
-<!-- -------------------------------------------------------------------------- -->
-
-### Roadmap
-----
-v0.1 ships as ten sequential pieces of work. Full detail is in [§38 of the specification](docs/spec.md).
-
-<details>
-<summary>Click here to expand</summary>
-
-<br/>
-
-| | Milestone | Done when | Status |
-|---|---|---|---|
-| **1** | Foundation and static interface | The app runs locally and looks like the product, on mock data | Shipped |
-| **2** | Android development environment | A development build is installed and debugged on a physical device | Shipped |
-| **3** | Audio recording | A real recording can be created and replayed after the session ends | Shipped |
-| **4** | Persistent library and playback | Recordings survive an app restart and remain playable | In progress |
-| **5** | Background recording and resilience | An hour-long real-world recording can be trusted | Not started |
-| **6** | External audio import | An externally exported recording imports and plays | Not started |
-| **7** | Initial transcription | A recording produces and displays a real transcript | Not started |
-| **8** | Bring-your-own provider | The same recording transcribes under two different models | Not started |
-| **9** | Transcript ownership | Import, transcribe, compare, edit and export without lock-in | Not started |
-| **10** | Polish and Android release | A stranger can install the APK and do all of the above unaided | Not started |
-
-**Explicitly out of scope for v0.1:** accounts, cloud storage, sync, subscriptions, summaries, mind maps, chat-with-your-recordings, semantic search, speaker profiles, iOS, and on-device Whisper. Some may come later; none is needed to prove the core product.
-
-</details>
 
 <br/>
 <br/>
@@ -186,8 +132,6 @@ Unpocketed will not include features designed to hide that recording is taking p
 
 <br/>
 <br/>
+
 <!-- -------------------------------------------------------------------------- -->
 
-### Licence
-----
-[MIT](LICENSE) © 2026 Devon Gifford
