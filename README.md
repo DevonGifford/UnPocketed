@@ -27,11 +27,9 @@
 ### Brief Introduction
 ----
 
-Unpocketed is an open-source Android application for recording, importing, transcribing, enriching and exporting spoken audio.
+Unpocketed is an Android app for recording, importing, transcribing and processing audio with the AI providers and models you choose.
 
-There is no Unpocketed account, subscription or server. Recordings, transcripts and settings stay on your device, while API keys are stored in the platform keystore. When you want something transcribed or enriched, you choose the provider and model, supply your own credentials, and the app talks to that service directly.
-
-Original audio is never destructively modified, so transcripts and AI-generated outputs can be replaced, compared or regenerated later with a different model.
+Your data stays local until you decide otherwise. When you want a cloud transcription or AI pass, you bring your own API key, pick the provider and model and Unpocketed talks to that service directly.  Original recordings and provider transcripts are kept intact, so you can compare models, create new versions and regenerate outputs whenever you want.
 
 > **Status:** Unpocketed is under active development toward v0.1.
 
@@ -43,20 +41,21 @@ Original audio is never destructively modified, so transcripts and AI-generated 
 ### Application Flow
 ---
 
-Unpocketed has two ways in — record on the device, or import audio captured elsewhere — and both produce the same kind of Recording. From there, transcription and enrichment are explicit, user-triggered steps, and the only points at which anything leaves the device.
+Unpocketed has two ways in — record on the device, or import audio captured elsewhere — and both produce the same kind of Recording. From there, transcription and enrichment are explicit, user-triggered steps and the only points at which anything leaves the device.
 
 ```
         ┌──────────────────────┐          ┌──────────────────────┐
         │   Record on device   │          │     Import audio     │
-        │   mic · background   │          │  captured elsewhere  │
+        │      microphone      │          │  captured elsewhere  │
         └───────────┬──────────┘          └───────────┬──────────┘
                     │                                 │
                     └───────────────┐ ┌───────────────┘
                                     ▼ ▼
                         ┌─────────────────────────┐
-                        │        Recording        │
-                        │   the original audio,   │
-                        │     never rewritten     │
+                        │     Stored on Device    │
+                        │ ----------------------- │
+                        │    Indexed in SQLite    │
+                        │   with in-app playback  │
                         └────────────┬────────────┘
                                      │
                                      ▼
@@ -83,40 +82,33 @@ Unpocketed has two ways in — record on the device, or import audio captured el
                 └────────────────┘         └──────────────────┘
 ```
 
-> An Edit and a Correction are the same operation by different hands — each makes a **Derived Transcript**, and neither replaces what it came from. A **Brief** is a different kind of thing: it sits beside a Transcript, and because its input is text already on the device, a poor one is re-rolled rather than edited. Two steps leave the device: the Transcribe arrow marked above, and Enrichment. Each goes to a provider you picked, under your own API key.
+> Recordings and transcripts stay on the device until you explicitly choose to use a cloud provider. Transcription and AI enrichment are separate steps, each using the provider, model and API key you choose.  Original recordings and provider transcripts are preserved, so nothing is overwritten.
 
 <br/>
 <br/>
 
+<!-- -------------------------------------------------------------------------- -->
+
+### Privacy & Responsible Recording
+----
+Recording laws vary by location and situation, and Unpocketed does not decide whether a recording is lawful. **You are responsible for making sure you have permission, or another lawful basis, before recording a conversation.**
+
+Recordings and transcripts stay on your device unless you explicitly send them to a transcription or AI provider you choose. Unpocketed has no accounts, no cloud storage, and no analytics. Android device backup is left enabled, so recordings may also be included in your own Google Drive backup. See [**PRIVACY.md**](PRIVACY.md) for provider-specific details.
+
+<br/>
+<br/>
 <!-- -------------------------------------------------------------------------- -->
 
 ### Running Locally
 ----
 
-Unpocketed can be run in two ways during development:
+There are a few useful ways to work on it depending on what you are testing. Browser preview is useful for quick interface work, while the Android emulator and a physical device are the real development environments for native behaviour.
 
-- **On your computer**
-  - **Browser** — quickest for UI and layout work
-  - **Android Emulator** — runs the full Android app locally
-  - See [**Emulator Setup**](docs/emulator-setup.md)
+- **On your computer** — see [**emulator setup.md**](docs/emulator-setup.md)  <br/>
+use the browser for fast UI and layout changes, or the Android Emulator when you need the full app with native storage, playback, recording, and Android-specific behaviour
 
-- **On a physical Android device**
-  - **Development build** — runs against the local Expo development server
-  - **Standalone APK** — runs without the development server *(coming later)*
-  - See [**Device Setup**](docs/device-setup.md)
-
-<br/>
-<br/>
-<!-- -------------------------------------------------------------------------- -->
-
-### Privacy & Responsible Recording
-----
-
-Recordings and transcripts stay on your device unless you explicitly send them to a transcription or AI provider you choose. Unpocketed has no accounts, no cloud storage, and no analytics. Android device backup is left enabled, so recordings may also be included in your own Google Drive backup. See [**PRIVACY.md**](PRIVACY.md) for provider-specific details.
-
-Recording laws vary by location and situation, and Unpocketed does not decide whether a recording is lawful. **You are responsible for making sure you have permission, or another lawful basis, before recording a conversation.**
-
-Unpocketed will not include features designed to hide that recording is taking place, and Android's microphone indicator remains visible while recording.
+- **On a physical Android device** — see [**device setup.md**](docs/device-setup.md)  <br/>
+run a development build against the local Expo server for real-device testing, especially recording, background behaviour, and hardware-specific features. A standalone APK workflow that runs without the development server will be added later.
 
 <br/>
 <br/>
@@ -142,4 +134,5 @@ Unpocketed will not include features designed to hide that recording is taking p
 <br/>
 
 <!-- -------------------------------------------------------------------------- -->
+
 
