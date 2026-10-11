@@ -81,26 +81,46 @@ Unpocketed has two ways in — record on the device, or import audio captured el
                 │   Transcript   │         │  of transcript   │
                 └────────────────┘         └──────────────────┘
 ```
-
-> Recordings and transcripts stay on the device until you explicitly choose to use a cloud provider. Transcription and AI enrichment are separate steps, each using the provider, model and API key you choose.  Original recordings and provider transcripts are preserved, so nothing is overwritten.
-
-<br/>
+<details>
+<summary><strong>Repository Structure</strong></summary>
 <br/>
 
-<!-- -------------------------------------------------------------------------- -->
+A single Expo application, with no server side and no workspace packages. Folders exist where real code needs the boundary, so there is no `services/` or `hooks/` layer waiting to be filled.
 
-### Privacy & Responsible Recording
-----
-Recording laws vary by location and situation, and Unpocketed does not decide whether a recording is lawful. **You are responsible for making sure you have permission, or another lawful basis, before recording a conversation.**
+```text
+UnPocketed/
+├── src/
+│   ├── app/            # Routes only — each one renders a screen
+│   ├── screens/        # One folder per screen
+│   ├── components/     # Shared UI, with ui/ for the primitives
+│   ├── features/       # recording, playback, library, import,
+│   │                   # transcription, enrichment
+│   ├── providers/      # transcription/ and enrichment/ adapters
+│   ├── db/             # SQLite access and migrations
+│   ├── lib/            # API keys, audio mode, formatting helpers
+│   ├── theme/          # Colour scheme and navigation tokens
+│   ├── types/          # Recording, Transcript, Brief
+│   └── global.css      # Design tokens — the single source of truth
+│
+├── plugins/            # Expo config plugin for release signing
+├── assets/             # Icon and splash artwork
+├── docs/               # Specification, setup guides, design references
+│
+├── app.json            # Expo configuration and plugin flags
+├── metro.config.js     # Uniwind wraps the Metro config here
+├── pnpm-workspace.yaml # Hoisted node linker, required by Metro
+└── package.json
+```
 
-Recordings and transcripts stay on your device unless you explicitly send them to a transcription or AI provider you choose. Unpocketed has no accounts, no cloud storage, and no analytics. Android device backup is left enabled, so recordings may also be included in your own Google Drive backup. See [**PRIVACY.md**](PRIVACY.md) for provider-specific details.
+`src/app/` holds nothing but Expo Router routes; every screen it renders lives in `src/screens/`. `features/` and `providers/` are cut along the same seam twice — `features/transcription` and `features/enrichment` own the application's own rules, while `providers/transcription` and `providers/enrichment` hold one adapter apiece, so the rest of the application stays ignorant of which one is in use. Tests sit beside the code they cover, as `*.test.ts`.
 
+</details>
+
+---
+
+<details>
+<summary><strong>Running Locally</strong></summary>
 <br/>
-<br/>
-<!-- -------------------------------------------------------------------------- -->
-
-### Running Locally
-----
 
 There are a few useful ways to work on it depending on what you are testing. Browser preview is useful for quick interface work, while the Android emulator and a physical device are the real development environments for native behaviour.
 
@@ -110,12 +130,15 @@ use the browser for fast UI and layout changes, or the Android Emulator when you
 - **On a physical Android device** — see [**device setup.md**](docs/device-setup.md)  <br/>
 run a development build against the local Expo server for real-device testing, especially recording, background behaviour, and hardware-specific features. A standalone APK workflow that runs without the development server will be added later.
 
-<br/>
-<br/>
-<!-- -------------------------------------------------------------------------- -->
+</details>
 
-### Documentation
-----
+---
+
+<details>
+<summary><strong>Documentation</strong></summary>
+<br/>
+
+Additional documentation is available if you'd like to explore the project in more detail.
 
 | Document | What it covers |
 |---|---|
@@ -130,9 +153,23 @@ run a development build against the local Expo server for real-device testing, e
 | [AGENTS.md](AGENTS.md) | Orientation for coding agents working in this repo |
 | [Decision map](.scratch/v0-1-derisk/map.md) | What is settled, what is still open |
 
+</details>
+
+---
+
 <br/>
 <br/>
 
 <!-- -------------------------------------------------------------------------- -->
+
+### Privacy & Responsible Recording
+----
+Recording laws vary by location and situation, and Unpocketed does not decide whether a recording is lawful. **You are responsible for making sure you have permission, or another lawful basis, before recording a conversation.**
+
+Recordings and transcripts stay on your device unless you explicitly send them to a transcription or AI provider you choose. Unpocketed has no accounts, no cloud storage, and no analytics. Android device backup is left enabled, so recordings may also be included in your own Google Drive backup. See [**PRIVACY.md**](PRIVACY.md) for provider-specific details.
+
+<br/>
+<br/>
+
 
 
