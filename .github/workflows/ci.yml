@@ -1,0 +1,43 @@
+# Typecheck, lint and unit tests on every push and pull request.
+#
+# pnpm, not npm: there is no package-lock.json, and `pnpm-workspace.yaml` sets
+# `nodeLinker: hoisted` because Metro cannot resolve pnpm's symlinked layout.
+# `--frozen-lockfile` is what makes this a check rather than a resolution.
+#
+# Nothing here builds the Android app. That needs the SDK, a keystore and a
+# device to be worth anything; see docs/releasing.md.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from package.json's `packageManager` field.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm typecheck
+
+      - run: pnpm lint
+
+      - run: pnpm test

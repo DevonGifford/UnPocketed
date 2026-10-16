@@ -1,21 +1,28 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { Uniwind } from "uniwind";
 
+import { DEFAULT_SCHEME, readScheme, writeScheme, type Scheme } from "./preferences";
+
+export type { Scheme };
+
 /**
- * Owns the explicit dark/light choice. Do not initialise it from
- * useColorScheme(): Uniwind.setTheme() changes Appearance, which Android
- * persists, so reading that value back can pin the app to its first scheme.
- * System-following and a saved preference remain future Settings work (§19).
+ * Owns the explicit dark/light choice, and remembers it across launches.
+ *
+ * The initial value comes from storage or {@link DEFAULT_SCHEME}, never from
+ * `useColorScheme()` — see the note on that constant for why reading the
+ * device's setting here pins the app to its first scheme instead of following
+ * the system. System-following remains unbuilt rather than half-built (§19).
  */
-export type Scheme = "light" | "dark";
 
 const SchemeContext = createContext<{ scheme: Scheme; toggle: () => void }>({
-  scheme: "dark",
+  scheme: DEFAULT_SCHEME,
   toggle: () => {},
 });
 
 export function SchemeProvider({ children }: { children: React.ReactNode }) {
-  const [scheme, setScheme] = useState<Scheme>("dark");
+  // Read once, during the first render: the stored value has to be in hand
+  // before anything paints, or every launch shows the other theme briefly.
+  const [scheme, setScheme] = useState<Scheme>(() => readScheme() ?? DEFAULT_SCHEME);
 
   useEffect(() => {
     Uniwind.setTheme(scheme);
@@ -24,7 +31,15 @@ export function SchemeProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       scheme,
-      toggle: () => setScheme((current) => (current === "dark" ? "light" : "dark")),
+      toggle: () => {
+        const next: Scheme = scheme === "dark" ? "light" : "dark";
+        // Outside the state updater, which React may call more than once and
+        // the compiler assumes is pure. Applied by the effect above whether or
+        // not the write lands, so a storage failure costs the choice at next
+        // launch rather than this tap.
+        writeScheme(next);
+        setScheme(next);
+      },
     }),
     [scheme],
   );

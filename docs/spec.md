@@ -1521,6 +1521,22 @@ Exit condition:
 
 > A stranger can download the v0.1 APK, install it, record audio, configure their provider, transcribe the recording, and export their data without developer assistance.
 
+**Part-built, 2026-10-08.** Release configuration, CI, privacy documentation, the
+licence and the README are done; so are the polish items that could be settled from
+source — scheme persistence, the WCAG contrast failures, and a permissions trim that
+leaves one foreground service where the template shipped two.
+
+**The exit condition is not met, and cannot be met from a keyboard.** It names a
+stranger installing an APK, and no APK has been built. The release configuration is
+proven as far as a keyboard reaches — the merged release manifest was read from the
+build and the signing config validated against a throwaway keystore — but no Android
+device was attached for any of this work, so playback and every visual change remain
+arguments rather than observations. The icon and splash are also still the Expo
+template's, deliberately — the project logo is a wordmark and a wordmark at 48dp is
+unreadable, so the mark is a design decision rather than a crop. `docs/artwork.md`
+lists what has to replace them. The decision map records what has not been exercised,
+rather than leaving it implied.
+
 ---
 
 # 39. Definition of done for v0.1

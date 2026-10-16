@@ -1,4 +1,5 @@
 import { Directory, File, Paths } from "expo-file-system";
+import { Platform } from "react-native";
 
 import type { Brief } from "@/types";
 
@@ -87,6 +88,14 @@ export function writeBrief(brief: Brief): void {
 
 /** Every Brief on disk, newest first. Unreadable sidecars are skipped. */
 export function listPersistedBriefs(): Brief[] {
+  /*
+   * Web has no file system (see the note in features/recording/storage.ts).
+   * Browser mode is a development preview of the interface only, so an empty
+   * list is the honest answer; a platform check rather than a try/catch keeps
+   * a real read failure on Android loud.
+   */
+  if (Platform.OS === "web") return [];
+
   const found = briefsDirectory()
     .list()
     .filter((entry): entry is File => entry instanceof File)
